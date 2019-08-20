@@ -1,0 +1,19 @@
+name: convert_to_nwb
+channels:
+- defaults
+- anaconda
+- conda-forge
+dependencies:
+- python=3.7
+- ipython
+- pip
+- numpy
+- scipy
+- jupyter
+- matplotlib
+- cycler
+- h5py
+- pynwb
+- hdmf
+- pip:
+  - -e .
