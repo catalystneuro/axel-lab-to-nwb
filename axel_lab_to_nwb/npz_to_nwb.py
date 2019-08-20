@@ -7,6 +7,7 @@ from pynwb import NWBFile, NWBHDF5IO, ProcessingModule
 from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, DfOverF, MotionCorrection
 from pynwb.device import Device
 from pynwb.base import TimeSeries
+from pynwb.behavior import SpatialSeries, Position
 
 import scipy.io
 import numpy as np
@@ -163,6 +164,14 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
                                 data=file1['ball'].ravel(),
                                 timestamps=tt,
                                 unit='unknown'))
+
+    #Behavior data - a spatial series for body-references positions
+    position = Position()
+    position.create_spatial_series(name='SpatialSeries',
+                                   data=file1['dlc'],
+                                   timestamps=tt,
+                                   reference_frame='Description defining what the zero-position is.')
+    behavior_mod.add(position)
 
     #Saves to NWB file
     fpath_nwb = os.path.join(fpath, fnwb)
