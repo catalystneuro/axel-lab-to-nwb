@@ -10,6 +10,9 @@ from pynwb.base import TimeSeries
 from pynwb.behavior import SpatialSeries, Position
 from ndx_grayscalevolume import GrayscaleVolume
 
+from mpl_toolkits.mplot3d import Axes3D
+from itertools import cycle
+
 import scipy.io
 import numpy as np
 import h5py
@@ -118,14 +121,7 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
 
     #Visualize 3D voxel masks
     if plot_rois:
-        from mpl_toolkits.mplot3d import Axes3D
-        from itertools import cycle
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        for select, c in zip(range(len(indptr)-1),cycle(['r','g','k','b','m','w','y','brown'])):
-            x, y, z, _ = np.array(ps['voxel_mask'][select]).T
-            ax.scatter(x, y, z, c=c, marker='.')
+        plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
     #DFF measures
     dff = DfOverF(name='DfOverF')
@@ -206,3 +202,12 @@ def make_voxel_mask(indices, dims):
         xp = rest%dims[0]
         voxel_mask.append((xp,yp,zp,1))
     return voxel_mask
+
+
+def plot_rois_function(plane_segmentation, indptr):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    for select, c in zip(range(len(indptr)-1),cycle(['r','g','k','b','m','w','y','brown'])):
+        x, y, z, _ = np.array(plane_segmentation['voxel_mask'][select]).T
+        ax.scatter(x, y, z, c=c, marker='.')
+    plt.show()
