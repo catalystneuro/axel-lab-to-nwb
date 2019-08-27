@@ -86,11 +86,6 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
         location='whole central brain',
     )
 
-    # Dimensions
-    Xp = file1['dims'][0][0]
-    Yp = file1['dims'][0][1]
-    Zp = file1['dims'][0][2]
-    T = file1['dFF'].shape[1]
     nCells = file1['dFF'].shape[0]
 
     # Creates ophys ProcessingModule and add to file
