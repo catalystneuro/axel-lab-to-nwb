@@ -171,12 +171,18 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
                                 timestamps=tt,
                                 unit='unknown'))
 
-    #Behavior data - a spatial series for body-references positions
+    #Re-arranges spatial data of body-points positions tracking
+    pos = file1['dlc']
+    nPoints = 8
+    pos_reshaped = pos.reshape((-1,nPoints,3))  #dims=(nSamples,nPoints,3)
+
+    #Creates a Position object and add one SpatialSeries for each body-point position
     position = Position()
-    position.create_spatial_series(name='SpatialSeries',
-                                   data=file1['dlc'],
-                                   timestamps=tt,
-                                   reference_frame='Description defining what the zero-position is.')
+    for i in range(nPoints):
+        position.create_spatial_series(name='SpatialSeries_'+str(i),
+                                       data=pos_reshaped[:,i,:],
+                                       timestamps=tt,
+                                       reference_frame='Description defining what the zero-position is.')
     behavior_mod.add(position)
 
     #Saves to NWB file
