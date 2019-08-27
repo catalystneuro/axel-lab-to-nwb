@@ -130,7 +130,7 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     #create ROI regions
     roi_region = ps.create_roi_table_region(
         description='RoiTableRegion',
-        region=[0]
+        region=list(range(len(indptr)-1))
     )
 
     #create ROI response series
