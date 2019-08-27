@@ -4,7 +4,7 @@
 
 from datetime import datetime
 from dateutil.tz import tzlocal
-from axel_lab_to_nwb.npz_to_nwb import * 
+from axel_lab_to_nwb import npz_to_nwb
 
 fpath = '/Users/bendichter/Desktop/Axel Lab/data/2019_07_01_fly2'
 f1 = '2019_07_01_Nsyb_NLS6s_walk_fly2.npz'
