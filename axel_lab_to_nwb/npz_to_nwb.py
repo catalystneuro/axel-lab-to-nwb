@@ -8,6 +8,7 @@ from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluo
 from pynwb.device import Device
 from pynwb.base import TimeSeries
 from pynwb.behavior import SpatialSeries, Position
+from ndx_grayscalevolume import GrayscaleVolume
 
 import scipy.io
 import numpy as np
@@ -146,10 +147,15 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
         timestamps=tt
     )
 
+    #Creates GrayscaleVolume containers and add a reference image
+    grayscale_volume = GrayscaleVolume(name='GrayscaleVolume',
+                                       data=file3['im'])
+    ophys_module.add(grayscale_volume)
+
     #Trial times
     tt = file1['time'].ravel()
     trialFlag = file1['trialFlag'].ravel()
-    trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0]))
+    trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
     trial_times = tt[trial_inds]
 
     for start, stop in zip(trial_times, trial_times[1:]):

@@ -16,4 +16,5 @@ dependencies:
 - pynwb
 - hdmf
 - pip:
+  - git+https://github.com/ben-dichter-consulting/ndx-grayscalevolume.git
   - -e .
