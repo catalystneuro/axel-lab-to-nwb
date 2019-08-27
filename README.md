@@ -21,7 +21,7 @@ Here's an example: we'll grab the data from the same experiment but stored in di
 ```python
 from datetime import datetime
 from dateutil.tz import tzlocal
-from axel_lab_to_nwb.npz_to_nwb import *
+from axel_lab_to_nwb import npz_to_nwb
 
 fpath = '/path/to/files'
 f1 = '2019_07_01_Nsyb_NLS6s_walk_fly2.npz'
