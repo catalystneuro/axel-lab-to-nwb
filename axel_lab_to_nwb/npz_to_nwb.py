@@ -82,14 +82,14 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
         location='whole central brain',
     )
 
-    #Dimensions
+    # Dimensions
     Xp = file1['dims'][0][0]
     Yp = file1['dims'][0][1]
     Zp = file1['dims'][0][2]
     T = file1['dFF'].shape[1]
     nCells = file1['dFF'].shape[0]
 
-    #Creates ophys ProcessingModule and add to file
+    # Creates ophys ProcessingModule and add to file
     ophys_module = ProcessingModule(
         name='ophys',
         description='contains optical physiology processed data.',
@@ -133,7 +133,7 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     # create ROI regions
     roi_region = ps.create_roi_table_region(
         description='RoiTableRegion',
-        region=list(range(len(indptr)-1))
+        region=list(range(nCells))
     )
 
     # create ROI response series
@@ -178,10 +178,11 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     # Creates a Position object and add one SpatialSeries for each body-point position
     position = Position()
     for i in range(nPoints):
-        position.create_spatial_series(name='SpatialSeries_'+str(i),
-                                       data=pos_reshaped[:,i,:],
+        position.create_spatial_series(name='SpatialSeries_' + str(i),
+                                       data=pos_reshaped[:, i, :],
                                        timestamps=tt,
-                                       reference_frame='Description defining what the zero-position is.')
+                                       reference_frame='Description defining what the zero-position is.',
+                                       conversion=np.nan)
     behavior_mod.add(position)
 
     # Saves to NWB file
