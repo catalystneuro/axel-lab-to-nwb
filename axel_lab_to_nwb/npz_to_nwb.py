@@ -55,12 +55,17 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     nwb = NWBFile(
         session_description=info['session_description'],
         identifier=info['identifier'],
+        session_id=info['session_id'],
         session_start_time=info['session_start_time'],
+        notes=info["notes"],
+        stimulus_notes=info["stimulus_notes"],
+        data_collection=info["data_collection"],
         experimenter=info['experimenter'],
         lab=info['lab'],
         institution=info['institution'],
         experiment_description=info['experiment_description'],
-        session_id=info['session_id'],
+        protocol=info["protocol"],
+        keywords=info["keywords"],
     )
 
     # Create and add device
@@ -206,3 +211,51 @@ def plot_rois_function(plane_segmentation, indptr):
         x, y, z, _ = np.array(plane_segmentation['voxel_mask'][select]).T
         ax.scatter(x, y, z, c=c, marker='.')
     plt.show()
+
+
+def read_metadata(metadata_file):
+    d = {}
+    with open(metadata_file) as f:
+        for line in f:
+            if '#' in line or not line.strip(): continue
+            key, val = line.replace("\r", "").replace("\n", "").split("=")
+            d[key] = val
+    # convert keywords to list
+    d["keywords"] = list(d["keywords"].split(","))
+    # convert plot_rois to boolean
+    d["plot_rois"] = d["plot_rois"]=='True'
+    return d
+
+
+#If called directly fom terminal
+if __name__ == '__main__':
+    import sys
+    from datetime import datetime
+    from dateutil.tz import tzlocal
+
+    if len(sys.argv)==0:
+        print('Error: Please provide metadata file.')
+
+    metadata = read_metadata(sys.argv[1])
+    fpath = metadata['fpath']
+    f1 = metadata['f1']
+    f2 = metadata['f2']
+    f3 = metadata['f3']
+    fnpz = [f1, f2, f3]
+    fnwb = metadata['fnwb']
+    info = {'session_description':metadata['session_description'],
+            'identifier':metadata['identifier'],
+            'session_id':metadata['session_id'],
+            'session_start_time':datetime.now(tzlocal()),
+            'notes':metadata["notes"],
+            'stimulus_notes':metadata["stimulus_notes"],
+            'data_collection':metadata["data_collection"],
+            'experimenter':metadata['experimenter'],
+            'lab':metadata['lab'],
+            'institution':metadata['institution'],
+            'experiment_description':metadata['experiment_description'],
+            'protocol':metadata["protocol"],
+            'keywords':metadata["keywords"],
+            }
+    plot_rois = metadata['plot_rois']
+    npz_to_nwb(fpath=fpath, fnpz=fnpz, fnwb=fnwb, info=info, plot_rois=plot_rois)
