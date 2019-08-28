@@ -12,7 +12,7 @@ $ source activate convert_to_nwb
 
 Alternatively, to install directly in an existing environment:
 ```
-$ pip install git+https://github.com/ben-dichter-consulting/axel-lab-to-nwb.git
+$ pip install axel-lab-to-nwb
 ```
 
 # Use
