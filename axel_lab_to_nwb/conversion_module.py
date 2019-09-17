@@ -92,7 +92,7 @@ def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
 
     # Creates ophys ProcessingModule and add to file
     ophys_module = ProcessingModule(
-        name='ophys',
+        name='Ophys',
         description='contains optical physiology processed data.',
     )
     nwb.add_processing_module(ophys_module)
@@ -123,7 +123,7 @@ def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
 #         plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
     # DFF measures
-    dff = DfOverF(name='DfOverF')
+    dff = DfOverF(name=meta['Ophys']['DfOverF']['name'])
     ophys_module.add(dff)
 
     # create ROI regions
@@ -144,43 +144,44 @@ def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
     )
 
     # Creates GrayscaleVolume containers and add a reference image
-    grayscale_volume = GrayscaleVolume(name='GrayscaleVolume',
+    grayscale_volume = GrayscaleVolume(name=meta['Ophys']['GrayscaleVolume']['name'],
                                        data=file3['im'])
     ophys_module.add(grayscale_volume)
 
-#     # Trial times
-#     tt = file1['time'].ravel()
-#     trialFlag = file1['trialFlag'].ravel()
-#     trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
-#     trial_times = tt[trial_inds]
-#
-#     for start, stop in zip(trial_times, trial_times[1:]):
-#         nwb.add_trial(start_time=start, stop_time=stop)
-#
-#     # Behavior data - ball motion
-#     behavior_mod = nwb.create_processing_module(
-#         name='behavior',
-#         description='holds processed behavior data',
-#     )
-#     behavior_mod.add(TimeSeries(name='ball_motion',
-#                                 data=file1['ball'].ravel(),
-#                                 timestamps=tt,
-#                                 unit='unknown'))
-#
-#     # Re-arranges spatial data of body-points positions tracking
-#     pos = file1['dlc']
-#     nPoints = 8
-#     pos_reshaped = pos.reshape((-1, nPoints, 3))  # dims=(nSamples,nPoints,3)
-#
-#     # Creates a Position object and add one SpatialSeries for each body-point position
-#     position = Position()
-#     for i in range(nPoints):
-#         position.create_spatial_series(name='SpatialSeries_' + str(i),
-#                                        data=pos_reshaped[:, i, :],
-#                                        timestamps=tt,
-#                                        reference_frame='Description defining what the zero-position is.',
-#                                        conversion=np.nan)
-#     behavior_mod.add(position)
+    # Trial times
+    tt = file1['time'].ravel()
+    trialFlag = file1['trialFlag'].ravel()
+    trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
+    trial_times = tt[trial_inds]
+
+    for start, stop in zip(trial_times, trial_times[1:]):
+        nwb.add_trial(start_time=start, stop_time=stop)
+
+    # Behavior data - ball motion
+    behavior_mod = nwb.create_processing_module(
+        name='Behavior',
+        description='holds processed behavior data',
+    )
+    behavior_ts = TimeSeries(name=meta['Behavior']['TimeSeries']['name'],
+                             data=file1['ball'].ravel(),
+                             timestamps=tt,
+                             unit=meta['Behavior']['TimeSeries']['unit'])
+    behavior_mod.add(behavior_ts)
+
+    # Re-arranges spatial data of body-points positions tracking
+    pos = file1['dlc']
+    nPoints = 8
+    pos_reshaped = pos.reshape((-1, nPoints, 3))  # dims=(nSamples,nPoints,3)
+
+    # Creates a Position object and add one SpatialSeries for each body-point position
+    position = Position()
+    for i in range(nPoints):
+        position.create_spatial_series(name='SpatialSeries_' + str(i),
+                                       data=pos_reshaped[:, i, :],
+                                       timestamps=tt,
+                                       reference_frame='Description defining what the zero-position is.',
+                                       conversion=np.nan)
+    behavior_mod.add(position)
 
     # Saves to NWB file
     with NWBHDF5IO(f_nwb, mode='w') as io:

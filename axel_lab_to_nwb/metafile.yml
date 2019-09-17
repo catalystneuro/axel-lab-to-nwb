@@ -1,3 +1,9 @@
+Behavior:
+  TimeSeries:
+    comments: ''
+    description: ''
+    name: ball_motion
+    unit: ''
 NWBFile:
   data_collection: ''
   experiment_description: ADDME
@@ -25,6 +31,9 @@ Ophys:
   DfOverF:
     name: DfOverF
     roi_response_series: RoiResponseSeries
+  GrayscaleVolume:
+    data: true
+    name: GrayscaleVolume
   ImageSegmentation:
     name: ImageSegmentation
     plane_segmentations: PlaneSegmentation
@@ -56,10 +65,3 @@ Ophys:
     rois: true
     timestamps: true
     unit: NA
-  TwoPhotonSeries:
-    comments: ''
-    description: ''
-    format: ''
-    imaging_plane: ImagingPlane
-    name: TwoPhotonSeries
-    unit: ''
