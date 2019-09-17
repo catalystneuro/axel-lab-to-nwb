@@ -19,7 +19,7 @@ import numpy as np
 import os
 
 
-def conversion_function(f_source, f_nwb, metafile):
+def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 

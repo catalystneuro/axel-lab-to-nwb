@@ -1,1 +1,1 @@
-from .npz_to_nwb import *
+from .conversion_module import *
