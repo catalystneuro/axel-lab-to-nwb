@@ -52,6 +52,7 @@ To use the GUI, just run the auxiliary function `nwb_gui.py` from terminal:
 ```
 $ python nwb_gui.py
 ```
+![](/media/gui.PNG)
 <br/>
 
 **4. Tutorial:** <br/>
