@@ -19,21 +19,30 @@ import numpy as np
 import os
 
 
-def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
+def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
     Parameters
     ----------
-    f_source : list of str
-        List of paths to source files, e.g. ['file.npz', 'file_A.npz', 'file_ref_im.npz'].
+    *f_sources : str
+        Possibly multiple paths to source files.
+        e.g.: 'file.npz', 'file_A.npz', 'file_ref_im.npz'
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
     metafile : str
         Path to .yml meta data file
+    **kwargs : key, value pairs
+        Extra keyword arguments, e.g. {'plot_rois':True}
     """
+
+    plot_rois = False
+    for key, value in kwargs.items():
+        if key == 'plot_rois':
+            plot_rois = True
+
     # Load source data from list of .npz files
-    for fname in f_source:
+    for fname in f_sources:
         if fname.endswith('_ref_im.npz'):
             fname3 = fname
             file3 = np.load(fname3)
@@ -118,9 +127,9 @@ def conversion_function(f_source, f_nwb, metafile, plot_rois=False):
         voxel_mask = make_voxel_mask(indices[start:stop], dims)
         ps.add_roi(voxel_mask=voxel_mask)
 
-#     # Visualize 3D voxel masks
-#     if plot_rois:
-#         plot_rois_function(plane_segmentation=ps, indptr=indptr)
+    # Visualize 3D voxel masks
+    if plot_rois:
+        plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
     # DFF measures
     dff = DfOverF(name=meta['Ophys']['DfOverF']['name'])
@@ -224,11 +233,10 @@ if __name__ == '__main__':
     f1 = sys.argv[1]
     f2 = sys.argv[2]
     f3 = sys.argv[3]
-    f_source = [f1, f2, f3]
     f_nwb = sys.argv[4]
     metafile = sys.argv[5]
     plot_rois = False
-    conversion_function(f_source=f_source,
+    conversion_function(f1, f2, f3,
                         f_nwb=f_nwb,
                         metafile=metafile,
                         plot_rois=plot_rois)
