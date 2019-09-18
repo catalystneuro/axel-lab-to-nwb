@@ -25,15 +25,13 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 from axel_lab_to_nwb import conversion_function
 
-fpath = '/path/to/files'
 f1 = '2019_07_01_Nsyb_NLS6s_walk_fly2.npz'
 f2 = '2019_07_01_Nsyb_NLS6s_walk_fly2_A.npz'
 f3 = '2019_07_01_Nsyb_NLS6s_walk_fly2_ref_im.npz'
-f_source = [f1, f2, f3]
 f_nwb = 'fly2.nwb'
 metafile = 'metafile.yml'
 plot_rois = False
-conversion_function(f_source=f_source,
+conversion_function(f1, f2, f3,
                     f_nwb=f_nwb,
                     metafile=metafile,
                     plot_rois=plot_rois)
