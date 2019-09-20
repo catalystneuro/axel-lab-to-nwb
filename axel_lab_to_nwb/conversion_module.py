@@ -4,16 +4,15 @@
 # written for Axel Lab
 # ------------------------------------------------------------------------------
 from pynwb import NWBFile, NWBHDF5IO, ProcessingModule
-from pynwb.ophys import OpticalChannel, ImageSegmentation, Fluorescence, DfOverF, MotionCorrection
+from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF
 from pynwb.device import Device
 from pynwb.base import TimeSeries
-from pynwb.behavior import SpatialSeries, Position
+from pynwb.behavior import Position
 from ndx_grayscalevolume import GrayscaleVolume
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
-import scipy.io
 import yaml
 import numpy as np
 import os
@@ -216,18 +215,17 @@ def make_voxel_mask(indices, dims):
 def plot_rois_function(plane_segmentation, indptr):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    for select, c in zip(range(len(indptr)-1),cycle(['r','g','k','b','m','w','y','brown'])):
+    for select, c in zip(range(len(indptr)-1), cycle(['r', 'g', 'k', 'b', 'm', 'w', 'y', 'brown'])):
         x, y, z, _ = np.array(plane_segmentation['voxel_mask'][select]).T
         ax.scatter(x, y, z, c=c, marker='.')
     plt.show()
 
 
-
-#If called directly fom terminal
+# If called directly fom terminal
 if __name__ == '__main__':
     import sys
 
-    if len(sys.argv)<6:
+    if len(sys.argv) < 6:
         print('Error: Please provide source files, nwb file name and metafile.')
 
     f1 = sys.argv[1]
