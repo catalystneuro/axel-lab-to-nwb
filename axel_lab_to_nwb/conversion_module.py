@@ -4,116 +4,124 @@
 # written for Axel Lab
 # ------------------------------------------------------------------------------
 from pynwb import NWBFile, NWBHDF5IO, ProcessingModule
-from pynwb.ophys import TwoPhotonSeries, OpticalChannel, ImageSegmentation, Fluorescence, DfOverF, MotionCorrection
+from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF
 from pynwb.device import Device
 from pynwb.base import TimeSeries
-from pynwb.behavior import SpatialSeries, Position
+from pynwb.behavior import Position
 from ndx_grayscalevolume import GrayscaleVolume
 
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
-
-import scipy.io
+import yaml
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 
 
-def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
+def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
     Parameters
     ----------
-    fpath : str, path
-        Directory path to files.
-    fnpz : list of str
-        List of .npz files names, e.g. ['file1.npz', 'file2.npz', 'file3.npz'].
-    fnwb : str
-        NWB file name, e.g. 'my_file.nwb'.
-    info : dict
-        Name:Value pairs of lab/experiment information.
-    plot_rois : boolean
-        If True plots 3D ROIs, if False skips it.
+    *f_sources : str
+        Possibly multiple paths to source files.
+        e.g.: 'file.npz', 'file_A.npz', 'file_ref_im.npz'
+    f_nwb : str
+        Path to output NWB file, e.g. 'my_file.nwb'.
+    metafile : str
+        Path to .yml meta data file
+    **kwargs : key, value pairs
+        Extra keyword arguments, e.g. {'plot_rois':True}
     """
-    # Load data from .npz files
-    files_path = fpath
 
-    fname1 = fnpz[0]
-    fpath1 = os.path.join(files_path, fname1)
-    file1 = np.load(fpath1)
+    plot_rois = False
+    for key, value in kwargs.items():
+        if key == 'plot_rois':
+            plot_rois = True
 
-    fname2 = fnpz[1]
-    fpath2 = os.path.join(files_path, fname2)
-    file2 = np.load(fpath2)
+    # Load source data from list of .npz files
+    for fname in f_sources:
+        if fname.endswith('_ref_im.npz'):
+            fname3 = fname
+            file3 = np.load(fname3)
+        elif fname.endswith('_A.npz'):
+            fname2 = fname
+            file2 = np.load(fname2)
+        else:
+            fname1 = fname
+            file1 = np.load(fname1)
 
-    fname3 = fnpz[2]
-    fpath3 = os.path.join(files_path, fname3)
-    file3 = np.load(fpath3)
+    # Load meta data from YAML file
+    with open(metafile) as f:
+        meta = yaml.safe_load(f)
 
     # Initialize a NWB object
     nwb = NWBFile(
-        session_description=info['session_description'],
-        identifier=info['identifier'],
-        session_id=info['session_id'],
-        session_start_time=info['session_start_time'],
-        notes=info["notes"],
-        stimulus_notes=info["stimulus_notes"],
-        data_collection=info["data_collection"],
-        experimenter=info['experimenter'],
-        lab=info['lab'],
-        institution=info['institution'],
-        experiment_description=info['experiment_description'],
-        protocol=info["protocol"],
-        keywords=info["keywords"],
+        session_description=meta['NWBFile']['session_description'],
+        identifier=meta['NWBFile']['identifier'],
+        session_id=meta['NWBFile']['session_id'],
+        session_start_time=meta['NWBFile']['session_start_time'],
+        notes=meta['NWBFile']["notes"],
+        stimulus_notes=meta['NWBFile']["stimulus_notes"],
+        data_collection=meta['NWBFile']["data_collection"],
+        experimenter=meta['NWBFile']['experimenter'],
+        lab=meta['NWBFile']['lab'],
+        institution=meta['NWBFile']['institution'],
+        experiment_description=meta['NWBFile']['experiment_description'],
+        protocol=meta['NWBFile']["protocol"],
+        keywords=meta['NWBFile']["keywords"],
     )
 
     # Create and add device
-    device = Device('Device')
+    device = Device(name=meta['Ophys']['Device']['name'])
     nwb.add_device(device)
 
     # Create an Imaging Plane
     fs = 1. / (file1['time'][0][1]-file1['time'][0][0])
     tt = file1['time'].ravel()
     optical_channel = OpticalChannel(
-        name='OpticalChannel',
-        description='2P Optical Channel',
-        emission_lambda=510.,
+        name=meta['Ophys']['OpticalChannel']['name'],
+        description=meta['Ophys']['OpticalChannel']['description'],
+        emission_lambda=meta['Ophys']['OpticalChannel']['emission_lambda'],
     )
     imaging_plane = nwb.create_imaging_plane(
-        name='ImagingPlane',
+        name=meta['Ophys']['ImagingPlane']['name'],
         optical_channel=optical_channel,
-        description='Imaging plane',
+        description=meta['Ophys']['ImagingPlane']['description'],
         device=device,
-        excitation_lambda=488.,
+        excitation_lambda=meta['Ophys']['ImagingPlane']['excitation_lambda'],
         imaging_rate=fs,
-        indicator='NLS-GCaMP6s',
-        location='whole central brain',
+        indicator=meta['Ophys']['ImagingPlane']['indicator'],
+        location=meta['Ophys']['ImagingPlane']['location'],
     )
 
     nCells = file1['dFF'].shape[0]
 
     # Creates ophys ProcessingModule and add to file
     ophys_module = ProcessingModule(
-        name='ophys',
+        name='Ophys',
         description='contains optical physiology processed data.',
     )
     nwb.add_processing_module(ophys_module)
 
     # Create Image Segmentation compartment
-    img_seg = ImageSegmentation()
+    img_seg = ImageSegmentation(
+        name=meta['Ophys']['ImageSegmentation']['name']
+    )
     ophys_module.add(img_seg)
 
     # Create plane segmentation and add ROIs
     ps = img_seg.create_plane_segmentation(
-        description='plane segmentation',
+        name=meta['Ophys']['PlaneSegmentation']['name'],
+        description=meta['Ophys']['PlaneSegmentation']['description'],
         imaging_plane=imaging_plane,
     )
+
     # Call function
     indices = file2['indices']
     indptr = file2['indptr']
     dims = np.squeeze(file1['dims'])
-
     for start, stop in zip(indptr, indptr[1:]):
         voxel_mask = make_voxel_mask(indices[start:stop], dims)
         ps.add_roi(voxel_mask=voxel_mask)
@@ -122,9 +130,8 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     if plot_rois:
         plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
-
     # DFF measures
-    dff = DfOverF(name='DfOverF')
+    dff = DfOverF(name=meta['Ophys']['DfOverF']['name'])
     ophys_module.add(dff)
 
     # create ROI regions
@@ -136,15 +143,16 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     # create ROI response series
     dff_data = file1['dFF']
     dff.create_roi_response_series(
-        name='RoiResponseSeries',
+        name=meta['Ophys']['RoiResponseSeries']['name'],
+        description=meta['Ophys']['RoiResponseSeries']['description'],
         data=dff_data.T,
-        unit='NA',
+        unit=meta['Ophys']['RoiResponseSeries']['unit'],
         rois=roi_region,
         timestamps=tt
     )
 
     # Creates GrayscaleVolume containers and add a reference image
-    grayscale_volume = GrayscaleVolume(name='GrayscaleVolume',
+    grayscale_volume = GrayscaleVolume(name=meta['Ophys']['GrayscaleVolume']['name'],
                                        data=file3['im'])
     ophys_module.add(grayscale_volume)
 
@@ -159,13 +167,14 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
 
     # Behavior data - ball motion
     behavior_mod = nwb.create_processing_module(
-        name='behavior',
+        name='Behavior',
         description='holds processed behavior data',
     )
-    behavior_mod.add(TimeSeries(name='ball_motion',
-                                data=file1['ball'].ravel(),
-                                timestamps=tt,
-                                unit='unknown'))
+    behavior_ts = TimeSeries(name=meta['Behavior']['TimeSeries']['name'],
+                             data=file1['ball'].ravel(),
+                             timestamps=tt,
+                             unit=meta['Behavior']['TimeSeries']['unit'])
+    behavior_mod.add(behavior_ts)
 
     # Re-arranges spatial data of body-points positions tracking
     pos = file1['dlc']
@@ -183,10 +192,9 @@ def npz_to_nwb(fpath, fnpz, fnwb, info, plot_rois=False):
     behavior_mod.add(position)
 
     # Saves to NWB file
-    fpath_nwb = os.path.join(fpath, fnwb)
-    with NWBHDF5IO(fpath_nwb, mode='w') as io:
+    with NWBHDF5IO(f_nwb, mode='w') as io:
         io.write(nwb)
-    print('NWB file saved with size: ', os.stat(fpath_nwb).st_size/1e6, ' mb')
+    print('NWB file saved with size: ', os.stat(f_nwb).st_size/1e6, ' mb')
 
 
 def make_voxel_mask(indices, dims):
@@ -207,55 +215,26 @@ def make_voxel_mask(indices, dims):
 def plot_rois_function(plane_segmentation, indptr):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    for select, c in zip(range(len(indptr)-1),cycle(['r','g','k','b','m','w','y','brown'])):
+    for select, c in zip(range(len(indptr)-1), cycle(['r', 'g', 'k', 'b', 'm', 'w', 'y', 'brown'])):
         x, y, z, _ = np.array(plane_segmentation['voxel_mask'][select]).T
         ax.scatter(x, y, z, c=c, marker='.')
     plt.show()
 
 
-def read_metadata(metadata_file):
-    d = {}
-    with open(metadata_file) as f:
-        for line in f:
-            if '#' in line or not line.strip(): continue
-            key, val = line.replace("\r", "").replace("\n", "").split("=")
-            d[key] = val
-    # convert keywords to list
-    d["keywords"] = list(d["keywords"].split(","))
-    # convert plot_rois to boolean
-    d["plot_rois"] = d["plot_rois"]=='True'
-    return d
-
-
-#If called directly fom terminal
+# If called directly fom terminal
 if __name__ == '__main__':
     import sys
-    from datetime import datetime
-    from dateutil.tz import tzlocal
 
-    if len(sys.argv)==0:
-        print('Error: Please provide metadata file.')
+    if len(sys.argv) < 6:
+        print('Error: Please provide source files, nwb file name and metafile.')
 
-    metadata = read_metadata(sys.argv[1])
-    fpath = metadata['fpath']
-    f1 = metadata['f1']
-    f2 = metadata['f2']
-    f3 = metadata['f3']
-    fnpz = [f1, f2, f3]
-    fnwb = metadata['fnwb']
-    info = {'session_description':metadata['session_description'],
-            'identifier':metadata['identifier'],
-            'session_id':metadata['session_id'],
-            'session_start_time':datetime.now(tzlocal()),
-            'notes':metadata["notes"],
-            'stimulus_notes':metadata["stimulus_notes"],
-            'data_collection':metadata["data_collection"],
-            'experimenter':metadata['experimenter'],
-            'lab':metadata['lab'],
-            'institution':metadata['institution'],
-            'experiment_description':metadata['experiment_description'],
-            'protocol':metadata["protocol"],
-            'keywords':metadata["keywords"],
-            }
-    plot_rois = metadata['plot_rois']
-    npz_to_nwb(fpath=fpath, fnpz=fnpz, fnwb=fnwb, info=info, plot_rois=plot_rois)
+    f1 = sys.argv[1]
+    f2 = sys.argv[2]
+    f3 = sys.argv[3]
+    f_nwb = sys.argv[4]
+    metafile = sys.argv[5]
+    plot_rois = False
+    conversion_function(f1, f2, f3,
+                        f_nwb=f_nwb,
+                        metafile=metafile,
+                        plot_rois=plot_rois)
