@@ -1,9 +1,3 @@
-Behavior:
-  TimeSeries:
-    comments: ''
-    description: ''
-    name: ball_motion
-    unit: ''
 NWBFile:
   data_collection: ''
   experiment_description: ADDME
@@ -11,15 +5,15 @@ NWBFile:
   identifier: ABC123
   institution: Columbia University
   keywords:
-  - kw1
-  - kw2
+  #- kw1
+  #- kw2
   lab: Axel lab
   notes: ''
   pharmacology: ''
   protocol: ''
   related_pubications: ''
   session_description: session_description
-  session_id: ADDME
+  session_id: ''
   session_start_time: 2019-09-16 17:10:00
   slices: ''
   stimulus_notes: ''
@@ -65,3 +59,9 @@ Ophys:
     rois: true
     timestamps: true
     unit: NA
+Behavior:
+  TimeSeries:
+    comments: ''
+    description: ''
+    name: ball_motion
+    unit: ''
