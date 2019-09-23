@@ -25,8 +25,11 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
     Parameters
     ----------
     *f_sources : str
-        Possibly multiple paths to source files.
-        e.g.: 'file.npz', 'file_A.npz', 'file_ref_im.npz'
+        Paths to source files. E.g.:
+        '2019_07_01_Nsyb_NLS6s_walk_fly2.npz', processed and behavioral data.
+        '2019_07_01_Nsyb_NLS6s_walk_fly2_A.npz', sparse matrix containing the
+        spatial footprints of each cell in the companion file.
+        '2019_07_01_Nsyb_NLS6s_walk_fly2_ref_im.npz', reference image.
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
     metafile : str
