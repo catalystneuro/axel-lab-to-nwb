@@ -235,10 +235,15 @@ if __name__ == '__main__':
     f1 = sys.argv[1]
     f2 = sys.argv[2]
     f3 = sys.argv[3]
+    source_paths = {
+        'processed data': {'type': 'file', 'path': f1},
+        'sparse matrix': {'type': 'file', 'path': f2},
+        'ref image',: {'type': 'file', 'path': f3}
+    }
     f_nwb = sys.argv[4]
     metafile = sys.argv[5]
     plot_rois = False
-    conversion_function(f1, f2, f3,
+    conversion_function(source_paths=source_paths,
                         f_nwb=f_nwb,
                         metafile=metafile,
                         plot_rois=plot_rois)
