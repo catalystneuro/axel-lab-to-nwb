@@ -25,16 +25,19 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 from axel_lab_to_nwb import conversion_function
 
-f1 = '2019_07_01_Nsyb_NLS6s_walk_fly2.npz'
-f2 = '2019_07_01_Nsyb_NLS6s_walk_fly2_A.npz'
-f3 = '2019_07_01_Nsyb_NLS6s_walk_fly2_ref_im.npz'
+source_paths = {}
+source_paths['processed data'] = {'type': 'file', 'path': PATH_TO_FILE}
+source_paths['sparse matrix'] = {'type': 'file', 'path': PATH_TO_FILE}
+source_paths['ref image'] = {'type': 'file', 'path': PATH_TO_FILE}
+
 f_nwb = 'fly2.nwb'
+
 metafile = 'metafile.yml'
-plot_rois = False
-conversion_function(f1, f2, f3,
+
+conversion_function(source_paths=source_paths,
                     f_nwb=f_nwb,
                     metafile=metafile,
-                    plot_rois=plot_rois)
+                    plot_rois=False)
 ```
 <br/>
 
