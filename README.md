@@ -44,7 +44,8 @@ conversion_function(source_paths=source_paths,
 **2. Command line:** <br/>
 Similarly, the conversion function can be called from the command line in terminal:
 ```
-$ python conversion_module.py 2019_07_01_Nsyb_NLS6s_walk_fly2.npz 2019_07_01_Nsyb_NLS6s_walk_fly2_A.npz 2019_07_01_Nsyb_NLS6s_walk_fly2_ref_im.npz fly2.nwb metafile.yml
+$ python conversion_module.py [processed_data_file] [sparse_matrix_file] [ref_image_file] 
+  [output_file] [metadata_file]
 ```
 <br/>
 
