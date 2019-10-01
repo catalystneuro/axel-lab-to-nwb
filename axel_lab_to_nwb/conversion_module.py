@@ -18,18 +18,17 @@ import numpy as np
 import os
 
 
-def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
+def conversion_function(source_paths, f_nwb, metafile, **kwargs):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
     Parameters
     ----------
-    *f_sources : str
-        Paths to source files. E.g.:
-        '2019_07_01_Nsyb_NLS6s_walk_fly2.npz', processed and behavioral data.
-        '2019_07_01_Nsyb_NLS6s_walk_fly2_A.npz', sparse matrix containing the
-        spatial footprints of each cell in the companion file.
-        '2019_07_01_Nsyb_NLS6s_walk_fly2_ref_im.npz', reference image.
+    source_paths : dict
+        Dictionary with paths to source files/directories. e.g.:
+        {'processed data': {'type': 'file', 'path': ''},
+         'sparse matrix': {'type': 'file', 'path': ''},
+         'ref image',: {'type': 'file', 'path': ''}}
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
     metafile : str
@@ -41,19 +40,21 @@ def conversion_function(*f_sources, f_nwb, metafile, **kwargs):
     plot_rois = False
     for key, value in kwargs.items():
         if key == 'plot_rois':
-            plot_rois = True
+            plot_rois = kwargs[key]
 
-    # Load source data from list of .npz files
-    for fname in f_sources:
-        if fname.endswith('_ref_im.npz'):
-            fname3 = fname
-            file3 = np.load(fname3)
-        elif fname.endswith('_A.npz'):
-            fname2 = fname
-            file2 = np.load(fname2)
-        else:
-            fname1 = fname
-            file1 = np.load(fname1)
+    # Source files
+    file1 = None
+    file2 = None
+    file3 = None
+    for k, v in source_paths.items():
+        if source_paths[k]['path'] != '':
+            fname = source_paths[k]['path']
+            if k == 'processed data':
+                file1 = np.load(fname)
+            if k == 'sparse matrix':
+                file2 = np.load(fname)
+            if k == 'ref image':
+                file3 = np.load(fname)
 
     # Load meta data from YAML file
     with open(metafile) as f:
