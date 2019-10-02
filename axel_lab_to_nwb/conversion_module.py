@@ -238,7 +238,7 @@ if __name__ == '__main__':
     source_paths = {
         'processed data': {'type': 'file', 'path': f1},
         'sparse matrix': {'type': 'file', 'path': f2},
-        'ref image',: {'type': 'file', 'path': f3}
+        'ref image': {'type': 'file', 'path': f3}
     }
     f_nwb = sys.argv[4]
     metafile = sys.argv[5]
