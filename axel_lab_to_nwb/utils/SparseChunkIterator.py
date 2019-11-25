@@ -8,7 +8,7 @@ from skimage.measure import block_reduce
 
 class SparseIterator(AbstractDataChunkIterator):
 
-    def __init__(self, data, chunk_shape, threshold):
+    def __init__(self, data, chunk_shape):
         """ Select chunks to write to disk
         Params:
           data:              The data to write to disk
@@ -23,11 +23,10 @@ class SparseIterator(AbstractDataChunkIterator):
 
         self.shape, self.chunk_shape = data.shape, chunk_shape
         self.data = data
-        self.threshold = threshold
 
         self.__chunks_created = 0
 
-        self.chunk_index_array, self.chunk_maxvalues = self.blob_detection(threshold = self.threshold)
+        self.chunk_index_array, self.chunk_maxvalues = self.blob_detection()
         self.chunk_count = len(self.chunk_index_array)
         self.chunk_ratio = self.chunk_count/np.prod( np.ceil( np.divide( self.shape, self.chunk_shape ) ).astype(int) )
 
