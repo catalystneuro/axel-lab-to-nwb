@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def plot_grid_seq(df, columns, legend_columns, ax_lims = None, markers = None, add_gridline = False):
+def plot_grid_seq(df, columns, legend_columns, ax_lims = None, markers = None, add_lines = None ):
 
     if ax_lims != None:
         if len(ax_lims) != len(columns):
@@ -63,16 +63,12 @@ def plot_grid_seq(df, columns, legend_columns, ax_lims = None, markers = None, a
             sns_plot = sns.pairplot(vars=columns, hue = legend_title , hue_order = legend_order,
                                     palette = palette_order, data = df,
                                     markers= marker_order, plot_kws={ "s": 150, "linewidth": 0.05 }, height = 5 )
+
             # set axis limits
             if ax_lims != None:
                 for i in range(len(columns)):
                     sns_plot.axes[i,i].set_xbound( ax_lims[columns[i]] )
                     sns_plot.axes[i,i].set_ybound( ax_lims[columns[i]] )
-
-            for i in range(len(columns)):
-                pass
-                sns_plot.axes[i,i].set_xbound( ax_lims[columns[i]] )
-                sns_plot.axes[i,i].set_ybound( ax_lims[columns[i]] )
 
             # save plot
             sns_plot.savefig("/home/e/figure.png", dpi=plot_dpi)
