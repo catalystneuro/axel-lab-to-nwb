@@ -18,7 +18,7 @@ import numpy as np
 import os
 
 
-def conversion_function(source_paths, f_nwb, metafile, **kwargs):
+def conversion_function(source_paths, f_nwb, metadata, **kwargs):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
@@ -31,8 +31,8 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
          'ref image',: {'type': 'file', 'path': ''}}
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
-    metafile : str
-        Path to .yml meta data file
+    metadata : dict
+        Metadata dictionary
     **kwargs : key, value pairs
         Extra keyword arguments, e.g. {'plot_rois':True}
     """
@@ -56,51 +56,32 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
             if k == 'ref image':
                 file3 = np.load(fname)
 
-    # Load meta data from YAML file
-    with open(metafile) as f:
-        meta = yaml.safe_load(f)
-
     # Initialize a NWB object
-    nwb = NWBFile(
-        session_description=meta['NWBFile']['session_description'],
-        identifier=meta['NWBFile']['identifier'],
-        session_id=meta['NWBFile']['session_id'],
-        session_start_time=meta['NWBFile']['session_start_time'],
-        notes=meta['NWBFile']["notes"],
-        stimulus_notes=meta['NWBFile']["stimulus_notes"],
-        data_collection=meta['NWBFile']["data_collection"],
-        experimenter=meta['NWBFile']['experimenter'],
-        lab=meta['NWBFile']['lab'],
-        institution=meta['NWBFile']['institution'],
-        experiment_description=meta['NWBFile']['experiment_description'],
-        protocol=meta['NWBFile']["protocol"],
-        keywords=meta['NWBFile']["keywords"],
-    )
+    nwb = NWBFile(**metadata['NWBFile'])
 
     # Create and add device
-    device = Device(name=meta['Ophys']['Device']['name'])
+    device = Device(name=metadata['Ophys']['Device'][0]['name'])
     nwb.add_device(device)
 
     # Create an Imaging Plane
     fs = 1. / (file1['time'][0][1]-file1['time'][0][0])
-    tt = file1['time'].ravel()
+    meta_oc = metadata['Ophys']['OpticalChannel'][0]
     optical_channel = OpticalChannel(
-        name=meta['Ophys']['OpticalChannel']['name'],
-        description=meta['Ophys']['OpticalChannel']['description'],
-        emission_lambda=meta['Ophys']['OpticalChannel']['emission_lambda'],
+        name=meta_oc['name'],
+        description=meta_oc['description'],
+        emission_lambda=meta_oc['emission_lambda'],
     )
+    meta_ip = metadata['Ophys']['ImagingPlane'][0]
     imaging_plane = nwb.create_imaging_plane(
-        name=meta['Ophys']['ImagingPlane']['name'],
+        name=meta_ip['name'],
         optical_channel=optical_channel,
-        description=meta['Ophys']['ImagingPlane']['description'],
+        description=meta_ip['description'],
         device=device,
-        excitation_lambda=meta['Ophys']['ImagingPlane']['excitation_lambda'],
+        excitation_lambda=meta_ip['excitation_lambda'],
         imaging_rate=fs,
-        indicator=meta['Ophys']['ImagingPlane']['indicator'],
-        location=meta['Ophys']['ImagingPlane']['location'],
+        indicator=meta_ip['indicator'],
+        location=meta_ip['location'],
     )
-
-    nCells = file1['dFF'].shape[0]
 
     # Creates ophys ProcessingModule and add to file
     ophys_module = ProcessingModule(
@@ -111,18 +92,19 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
 
     # Create Image Segmentation compartment
     img_seg = ImageSegmentation(
-        name=meta['Ophys']['ImageSegmentation']['name']
+        name=metadata['Ophys']['ImageSegmentation']['name']
     )
     ophys_module.add(img_seg)
 
     # Create plane segmentation and add ROIs
+    meta_ps = metadata['Ophys']['ImageSegmentation']['plane_segmentations'][0]
     ps = img_seg.create_plane_segmentation(
-        name=meta['Ophys']['PlaneSegmentation']['name'],
-        description=meta['Ophys']['PlaneSegmentation']['description'],
+        name=meta_ps['name'],
+        description=meta_ps['description'],
         imaging_plane=imaging_plane,
     )
 
-    # Call function
+    # Add ROIs
     indices = file2['indices']
     indptr = file2['indptr']
     dims = np.squeeze(file1['dims'])
@@ -135,10 +117,11 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
     # DFF measures
-    dff = DfOverF(name=meta['Ophys']['DfOverF']['name'])
+    dff = DfOverF(name=metadata['Ophys']['DfOverF']['name'])
     ophys_module.add(dff)
 
     # create ROI regions
+    nCells = file1['dFF'].shape[0]
     roi_region = ps.create_roi_table_region(
         description='RoiTableRegion',
         region=list(range(nCells))
@@ -146,22 +129,25 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
 
     # create ROI response series
     dff_data = file1['dFF']
+    tt = file1['time'].ravel()
+    meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
     dff.create_roi_response_series(
-        name=meta['Ophys']['RoiResponseSeries']['name'],
-        description=meta['Ophys']['RoiResponseSeries']['description'],
+        name=meta_rrs['name'],
+        description=meta_rrs['description'],
         data=dff_data.T,
-        unit=meta['Ophys']['RoiResponseSeries']['unit'],
+        unit=meta_rrs['unit'],
         rois=roi_region,
         timestamps=tt
     )
 
     # Creates GrayscaleVolume containers and add a reference image
-    grayscale_volume = GrayscaleVolume(name=meta['Ophys']['GrayscaleVolume']['name'],
-                                       data=file3['im'])
+    grayscale_volume = GrayscaleVolume(
+        name=metadata['Ophys']['GrayscaleVolume']['name'],
+        data=file3['im']
+    )
     ophys_module.add(grayscale_volume)
 
     # Trial times
-    tt = file1['time'].ravel()
     trialFlag = file1['trialFlag'].ravel()
     trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
     trial_times = tt[trial_inds]
@@ -174,10 +160,10 @@ def conversion_function(source_paths, f_nwb, metafile, **kwargs):
         name='Behavior',
         description='holds processed behavior data',
     )
-    behavior_ts = TimeSeries(name=meta['Behavior']['TimeSeries']['name'],
+    behavior_ts = TimeSeries(name=metadata['Behavior']['TimeSeries'][0]['name'],
                              data=file1['ball'].ravel(),
                              timestamps=tt,
-                             unit=meta['Behavior']['TimeSeries']['unit'])
+                             unit=metadata['Behavior']['TimeSeries'][0]['unit'])
     behavior_mod.add(behavior_ts)
 
     # Re-arranges spatial data of body-points positions tracking
@@ -228,6 +214,7 @@ def plot_rois_function(plane_segmentation, indptr):
 # If called directly fom terminal
 if __name__ == '__main__':
     import sys
+    import yaml
 
     if len(sys.argv) < 6:
         print('Error: Please provide source files, nwb file name and metafile.')
@@ -243,7 +230,13 @@ if __name__ == '__main__':
     f_nwb = sys.argv[4]
     metafile = sys.argv[5]
     plot_rois = False
+
+    # Load metadata from YAML file
+    metafile = sys.argv[3]
+    with open(metafile) as f:
+       metadata = yaml.safe_load(f)
+
     conversion_function(source_paths=source_paths,
                         f_nwb=f_nwb,
-                        metafile=metafile,
+                        metadata=metadata,
                         plot_rois=plot_rois)

@@ -1,66 +1,47 @@
 NWBFile:
-  data_collection: ''
   experiment_description: ADDME
   experimenter: Evan Schaffer
-  identifier: ABC123
+  identifier: ADDME
   institution: Columbia University
-  keywords:
-  - ''
   lab: Axel lab
-  notes: ''
-  pharmacology: ''
-  protocol: ''
-  related_publications: ''
   session_description: session_description
-  session_id: ''
+  session_id: ADDME
   session_start_time: 2018-08-09 10:00:00
-  slices: ''
-  stimulus_notes: ''
-  surgery: ''
-  virus: ''
 Behavior:
   TimeSeries:
-    comments: ''
-    description: ''
-    name: ball_motion
-    unit: ''
+    - name: ball_motion
+      unit: ADDME
 Ophys:
   Device:
-    name: Device
+    - name: Device
   DfOverF:
     name: DfOverF
-    roi_response_series: RoiResponseSeries
+    roi_response_series:
+      - data: true
+        name: RoiResponseSeries
+        rois: true
+        unit: ADDME
   GrayscaleVolume:
     data: true
     name: GrayscaleVolume
   ImageSegmentation:
     name: ImageSegmentation
-    plane_segmentations: PlaneSegmentation
+    plane_segmentations:
+      - name: PlaneSegmentation
+        description: plane_segmentation_description
+        imaging_plane: ImagingPlane
   ImagingPlane:
-    conversion: 0.0
-    description: Imaging plane
-    device: Device
-    excitation_lambda: 488.0
-    imaging_rate: 0.0
-    indicator: NLS-GCaMP6s
-    location: whole central brain
-    name: ImagingPlane
-    optical_channel: OpticalChannel
-    reference_frame: ''
-    unit: ''
+    - conversion: 0.0
+      description: Imaging plane
+      device: Device
+      excitation_lambda: 488.0
+      imaging_rate: 0.0
+      indicator: NLS-GCaMP6s
+      location: whole central brain
+      name: ImagingPlane
+      optical_channel: OpticalChannel
+      reference_frame: ADDME
   OpticalChannel:
-    description: 2P Optical Channel
-    emission_lambda: 510.0
-    name: OpticalChannel
-  PlaneSegmentation:
-    description: description
-    imaging_plane: ImagingPlane
-    name: PlaneSegmentation
-  RoiResponseSeries:
-    comments: ''
-    data: true
-    description: ''
-    name: RoiResponseSeries
-    rois: true
-    timestamps: true
-    unit: NA
+    - description: 2P Optical Channel
+      emission_lambda: 510.0
+      name: OpticalChannel
