@@ -15,13 +15,20 @@ Ophys:
     - name: Device
   DfOverF:
     name: DfOverF
-    roi_response_series: RoiResponseSeries
+    roi_response_series:
+      - data: true
+        name: RoiResponseSeries
+        rois: true
+        unit: ADDME
   GrayscaleVolume:
     data: true
     name: GrayscaleVolume
   ImageSegmentation:
     name: ImageSegmentation
-    plane_segmentations: PlaneSegmentation
+    plane_segmentations:
+      - name: PlaneSegmentation
+        description: plane_segmentation_description
+        imaging_plane: ImagingPlane
   ImagingPlane:
     - conversion: 0.0
       description: Imaging plane
@@ -37,12 +44,3 @@ Ophys:
     - description: 2P Optical Channel
       emission_lambda: 510.0
       name: OpticalChannel
-  PlaneSegmentation:
-    description: description
-    imaging_plane: ImagingPlane
-    name: PlaneSegmentation
-  RoiResponseSeries:
-    data: true
-    name: RoiResponseSeries
-    rois: true
-    timestamps: true

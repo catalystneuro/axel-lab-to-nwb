@@ -65,7 +65,6 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
 
     # Create an Imaging Plane
     fs = 1. / (file1['time'][0][1]-file1['time'][0][0])
-    tt = file1['time'].ravel()
     meta_oc = metadata['Ophys']['OpticalChannel'][0]
     optical_channel = OpticalChannel(
         name=meta_oc['name'],
@@ -84,8 +83,6 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
         location=meta_ip['location'],
     )
 
-    nCells = file1['dFF'].shape[0]
-
     # Creates ophys ProcessingModule and add to file
     ophys_module = ProcessingModule(
         name='Ophys',
@@ -100,13 +97,14 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
     ophys_module.add(img_seg)
 
     # Create plane segmentation and add ROIs
+    meta_ps = metadata['Ophys']['ImageSegmentation']['plane_segmentations'][0]
     ps = img_seg.create_plane_segmentation(
-        name=metadata['Ophys']['PlaneSegmentation']['name'],
-        description=metadata['Ophys']['PlaneSegmentation']['description'],
+        name=meta_ps['name'],
+        description=meta_ps['description'],
         imaging_plane=imaging_plane,
     )
 
-    # Call function
+    # Add ROIs
     indices = file2['indices']
     indptr = file2['indptr']
     dims = np.squeeze(file1['dims'])
@@ -123,6 +121,7 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
     ophys_module.add(dff)
 
     # create ROI regions
+    nCells = file1['dFF'].shape[0]
     roi_region = ps.create_roi_table_region(
         description='RoiTableRegion',
         region=list(range(nCells))
@@ -130,22 +129,25 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
 
     # create ROI response series
     dff_data = file1['dFF']
+    tt = file1['time'].ravel()
+    meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
     dff.create_roi_response_series(
-        name=metadata['Ophys']['RoiResponseSeries']['name'],
-        description=metadata['Ophys']['RoiResponseSeries']['description'],
+        name=meta_rrs['name'],
+        description=meta_rrs['description'],
         data=dff_data.T,
-        unit=metadata['Ophys']['RoiResponseSeries']['unit'],
+        unit=meta_rrs['unit'],
         rois=roi_region,
         timestamps=tt
     )
 
     # Creates GrayscaleVolume containers and add a reference image
-    grayscale_volume = GrayscaleVolume(name=metadata['Ophys']['GrayscaleVolume']['name'],
-                                       data=file3['im'])
+    grayscale_volume = GrayscaleVolume(
+        name=metadata['Ophys']['GrayscaleVolume']['name'],
+        data=file3['im']
+    )
     ophys_module.add(grayscale_volume)
 
     # Trial times
-    tt = file1['time'].ravel()
     trialFlag = file1['trialFlag'].ravel()
     trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
     trial_times = tt[trial_inds]
