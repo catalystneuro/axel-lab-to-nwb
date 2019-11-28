@@ -160,10 +160,10 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
         name='Behavior',
         description='holds processed behavior data',
     )
-    behavior_ts = TimeSeries(name=metadata['Behavior']['TimeSeries']['name'],
+    behavior_ts = TimeSeries(name=metadata['Behavior']['TimeSeries'][0]['name'],
                              data=file1['ball'].ravel(),
                              timestamps=tt,
-                             unit=metadata['Behavior']['TimeSeries']['unit'])
+                             unit=metadata['Behavior']['TimeSeries'][0]['unit'])
     behavior_mod.add(behavior_ts)
 
     # Re-arranges spatial data of body-points positions tracking
