@@ -55,7 +55,7 @@ class show_data():
             self.results_file = 'results.tsv'
 
         if marker_list == None:
-            self.marker_list = ["v","d","o","X","s"]
+            self.marker_list = ["X","d","o","v","s"]
             
         self.display_style = {h: "{:.2f}" for h in self.header_str[4:]}    
 
