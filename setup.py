@@ -15,5 +15,5 @@ setup(name='axel_lab_to_nwb',
       packages=find_packages(),
       include_package_data=True,
       install_requires=['matplotlib', 'cycler', 'scipy', 'numpy', 'jupyter',
-                        'h5py', 'pynwb', 'ndx-grayscalevolume'],
+                        'h5py', 'pynwb', 'ndx-grayscalevolume', 'scikit-image'],
       )
