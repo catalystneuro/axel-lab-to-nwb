@@ -18,7 +18,7 @@ import numpy as np
 import os
 
 
-def conversion_function(source_paths, f_nwb, metadata, **kwargs):
+def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
@@ -33,14 +33,11 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
         Path to output NWB file, e.g. 'my_file.nwb'.
     metadata : dict
         Metadata dictionary
+    plot_rois : bool
+        Plot ROIs
     **kwargs : key, value pairs
-        Extra keyword arguments, e.g. {'plot_rois':True}
+        Extra keyword arguments
     """
-
-    plot_rois = False
-    for key, value in kwargs.items():
-        if key == 'plot_rois':
-            plot_rois = kwargs[key]
 
     # Source files
     file1 = None
@@ -131,14 +128,10 @@ def conversion_function(source_paths, f_nwb, metadata, **kwargs):
     dff_data = file1['dFF']
     tt = file1['time'].ravel()
     meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
-    dff.create_roi_response_series(
-        name=meta_rrs['name'],
-        description=meta_rrs['description'],
-        data=dff_data.T,
-        unit=meta_rrs['unit'],
-        rois=roi_region,
-        timestamps=tt
-    )
+    meta_rrs['data'] = dff_data.T
+    meta_rrs['rois'] = roi_region
+    meta_rrs['timestamps'] = tt
+    dff.create_roi_response_series(**meta_rrs)
 
     # Creates GrayscaleVolume containers and add a reference image
     grayscale_volume = GrayscaleVolume(
