@@ -1,46 +1,37 @@
 NWBFile:
-  experiment_description: ADDME
   experimenter: Evan Schaffer
   identifier: ADDME
   institution: Columbia University
   lab: Axel lab
-  session_description: session_description
-  session_id: ADDME
+  session_description: ADDME
   session_start_time: 2018-08-09 10:00:00
 Behavior:
   TimeSeries:
     - name: ball_motion
-      unit: ADDME
 Ophys:
   Device:
     - name: Device
   DfOverF:
     name: DfOverF
     roi_response_series:
-      - data: true
-        name: RoiResponseSeries
-        rois: true
-        unit: ADDME
+      - name: RoiResponseSeries
   GrayscaleVolume:
-    data: true
     name: GrayscaleVolume
   ImageSegmentation:
     name: ImageSegmentation
     plane_segmentations:
       - name: PlaneSegmentation
-        description: plane_segmentation_description
+        description: ADDME
         imaging_plane: ImagingPlane
   ImagingPlane:
-    - conversion: 0.0
-      description: Imaging plane
+    - description: ADDME
       device: Device
       excitation_lambda: 488.0
-      imaging_rate: 0.0
+      imaging_rate: ADDME
       indicator: NLS-GCaMP6s
       location: whole central brain
       name: ImagingPlane
       optical_channel: OpticalChannel
-      reference_frame: ADDME
   OpticalChannel:
     - description: 2P Optical Channel
       emission_lambda: 510.0
