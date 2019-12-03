@@ -14,7 +14,7 @@ class SparseIterator(AbstractDataChunkIterator):
           data:              The data to write to disk
           shape:             shape of data
           chunk_shape:       The shape of each chunk to be created
-          chunk_index_array: List of selected chunks to write
+          chunks_write:      List of selected chunks to write
           chunk_count:       number of selected chunks to write
           chunk_ratio:       ratio of selected chunks to total number of chunks in the data
         Returns:
@@ -26,8 +26,8 @@ class SparseIterator(AbstractDataChunkIterator):
 
         self.__chunks_created = 0
 
-        self.chunk_index_array, self.chunk_maxvalues = self.blob_detection()
-        self.chunk_count = len(self.chunk_index_array)
+        self.chunks_write, self.chunk_maxvalues = self.blob_detection()
+        self.chunk_count = len(self.chunks_write)
         self.chunk_ratio = self.chunk_count/np.prod( np.ceil( np.divide( self.shape, self.chunk_shape ) ).astype(int) )
 
     def __iter__(self):
@@ -42,7 +42,7 @@ class SparseIterator(AbstractDataChunkIterator):
         if self.__chunks_created < self.chunk_count:
 
             chunk_i = self.__chunks_created
-            chunk_index = self.chunk_index_array[ chunk_i ]
+            chunk_index = self.chunks_write[ chunk_i ]
             tmin, xmin, ymin, zmin = chunk_index*self.chunk_shape
             tmax, xmax, ymax, zmax = chunk_index*self.chunk_shape + self.chunk_shape
             tmax, xmax, ymax, zmax = np.clip( [tmax, xmax, ymax, zmax], np.zeros( len(self.shape), dtype=int ), self.shape )
@@ -75,6 +75,15 @@ class SparseIterator(AbstractDataChunkIterator):
         # If we don't know the size of a dimension beforehand we can set the dimension to None instead
         return (None,*self.shape[1:])
 
+    # Defined only to allow for passing data through if chunk_shape is None
+    def __new__(cls, data, chunk_shape):
+        if chunk_shape != None:
+            #Create instance and call SparseIterator init 
+            return super().__new__(cls)
+        else:
+            #pass data through
+            return data
+
     def blob_detection(self, scale = 1.5, threshold = 1):
         """ Detect chunks of interest
         Params:
@@ -93,7 +102,7 @@ class SparseIterator(AbstractDataChunkIterator):
         chunk_repeat = np.ones( len(self.shape) )
         chunk_repeat[0] = np.ceil( self.shape[0]/self.chunk_shape[0] )
         chunk_maxvalues_tiled = np.tile( chunk_maxvalues, chunk_repeat.astype(int) )
-        chunk_index_array = np.argwhere( chunk_maxvalues_tiled > threshold )
+        chunks_write = np.argwhere( chunk_maxvalues_tiled > threshold )
 
-        return chunk_index_array, chunk_maxvalues
-    
+        return chunks_write, chunk_maxvalues
+

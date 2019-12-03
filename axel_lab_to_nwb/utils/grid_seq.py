@@ -5,17 +5,172 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import functools
+import itertools
+from tqdm import tqdm
+
+from IPython.display import clear_output, Markdown, update_display
+import pandas as pd
+import itertools
+import time
+import functools
+import warnings
+warnings.simplefilter('ignore')
+import ipyvolume.pylab as p3
+from ipyvolume import ipv
+from ipywidgets import interact, FloatSlider, jslink, GridBox
+from nwbwidgets.utils.cmaps import linear_transfer_function
+from .sparse_volume_widget import sparse_volume_widget
+
+class show_data():
+    
+    def __init__(self, channels, compression_opts_list = None, uncompressed_results = None, show_results = True,
+                 sync_volume_plot = False, marker_list = None, results_file = None):
+
+        self.channels = channels
+        self.compression_opts_list = compression_opts_list
+        self.chunk_opacity = FloatSlider(min=0, max=1, step=0.01,
+                                    value=0, description="Data Opacity :",
+                                    style={'description_width': 'initial'})
+        self.free_space_opacity = FloatSlider(min=0, max=1, step=0.01,
+                                    value = 0, description = "Inverted Opacity :",
+                                    style={'description_width': 'initial'})
+        self.initial_display = True
+        self.uncompressed_results = uncompressed_results
+        self.show_results = show_results
+        self.sync_volume_plot = sync_volume_plot
+        self.header_str = ("Chunk Size","Compression","Compression Options",
+                           "Shuffle","Write Time (sec)","Read Time (sec)",
+                           "File Size (MB)")
+        if self.uncompressed_results is not None:
+            self.header_str +=  ("Write Time Ratio",
+                                 "Read Time Ratio",
+                                 "Size Ratio")
+        self.header_str += ("Written / Total Chunks Ratio", )
+
+        self.data_frame = pd.DataFrame(columns = self.header_str)
+
+        if results_file != None:
+            self.results_file = results_file
+        else:
+            self.results_file = 'results.tsv'
+
+        if marker_list == None:
+            self.marker_list = ["v","d","o","X","s"]
+            
+        self.display_style = {h: "{:.2f}" for h in self.header_str[4:]}    
+
+        clear_output()
+        self.volume_widget = sparse_volume_widget(channels, [1,1,1], np.zeros([1,3], dtype=int))                 
+        p3.display(self.volume_widget,display_id="data selection")
+        display(Markdown(''), display_id="figure")
+        self.sns_plot_last = None
+
+        if self.show_results == True:
+            display(Markdown(''), display_id="data frame")
+
+
+    def update(self, run_nwb_result, compression_opts, compression, chunk_shape, shuffle, channels):
+        time_write, time_read, file_size, sparse_written_chunks = run_nwb_result
+
+        # prepare benchmark results
+        output_list =  [str(chunk_shape).replace(" ",""),
+                        compression,
+                        str(compression_opts),
+                        str(shuffle),
+                        time_write,
+                        time_read,
+                        file_size]
+
+        # add comp/uncompressed ratios
+        if self.uncompressed_results is not None:
+            output_ratio = np.array([time_write, time_read, file_size])/self.uncompressed_results
+            output_list += list(output_ratio)
+
+        # add ratio of written chunks
+        if type(channels) == dict:
+            data_shape = list(channels.values())[0].shape
+        else:
+            data_shape = channels.shape
+        if type(sparse_written_chunks) == list and sparse_written_chunks != []:
+            sparse_written_chunks = np.vstack(sparse_written_chunks)
+            # remove duplicates
+            sparse_written_chunks = np.unique( sparse_written_chunks, axis=0 )
+
+        if chunk_shape != None:
+            chunks_index_shape = np.ceil( np.divide( data_shape, chunk_shape ) ).astype(int)
+            chunk_ratio = len(sparse_written_chunks)/np.prod( chunks_index_shape )
+            chunk_shape_display = chunk_shape
+        else:
+            chunks_index_shape = np.ones(len(data_shape), dtype=int)
+            chunk_ratio = 1
+            chunk_shape_display = data_shape
+        output_list += [chunk_ratio]
+
+        # add results to data frame
+        self.data_frame.loc[len(self.data_frame)] = output_list
+
+        if self.sync_volume_plot == True or self.initial_display == True:
+            chunks_index_boolean = np.zeros( chunks_index_shape, dtype = bool )
+            chunks_index_boolean[tuple(np.array(sparse_written_chunks).T)] = True
+            chunks_boolean_max = np.max( chunks_index_boolean, axis = 0)
+            chunks_quantized_bool = np.kron( chunks_boolean_max, np.ones( chunk_shape_display[1:], dtype = bool ) )
+            checkered_grid = functools.reduce( lambda x,y : np.logical_xor(x%2,y%2),
+                                              np.ogrid[0:chunks_index_shape[1],
+                                              0:chunks_index_shape[2],
+                                              0:chunks_index_shape[3] ] )
+            checkered_grid_quantized = np.kron( checkered_grid, np.ones( chunk_shape_display[1:] ) )
+            chunks_quantized_bool_a = checkered_grid_quantized*chunks_quantized_bool
+            chunks_quantized_bool_b = np.logical_not(checkered_grid_quantized)*chunks_quantized_bool
+            free_space_quantized_bool_a = checkered_grid_quantized*np.logical_not(chunks_quantized_bool)
+            free_space_quantized_bool_b = np.logical_not(checkered_grid_quantized
+                                                        )*np.logical_not(chunks_quantized_bool)
+            self.volume_widget.children[0].volumes[1].opacity_scale = 1
+            self.volume_widget.children[0].volumes[2].opacity_scale = 1
+            if chunk_shape == None:
+                self.volume_widget.children[1].value=0
+            self.volume_widget.children[0].volumes[1].data = chunks_quantized_bool_a
+            self.volume_widget.children[0].volumes[2].data = chunks_quantized_bool_b
+            self.initial_display = False
+
+        if self.show_results == True:
+            update_display(self.data_frame.style.format(self.display_style).set_properties(width='110px'),
+                           display_id="data frame")            
+
+            # store results
+            with open(self.results_file, 'a') as output_file:
+                output_line = '\t'.join( str(el) for el in output_list)+'\n' 
+                output_file.write( output_line )
+
+            # plot results 
+            if self.uncompressed_results is None:
+                columns = self.header_str[4:7]
+            else:
+                columns = self.header_str[7:10]
+            self.sns_plot = plot_grid_seq(self.data_frame, columns=columns,
+                        legend_columns=["Compression","Compression Options"], legend_data=self.compression_opts_list,
+                        markers=self.marker_list, legend_title="Compression Option" )
+
+            if self.sns_plot != None:
+                update_display(self.sns_plot.fig, display_id="figure")
+                if self.sns_plot_last is not None:
+                    plt.close(self.sns_plot_last.fig)
+                self.sns_plot_last = self.sns_plot
+
+        return self.data_frame
 
 def generate_param_list(compression_opts_list, chunks_list, shuffle_list):
+    # Iterator for nested loop of compression variables
     compression_param_product = itertools.chain.from_iterable(
             itertools.product(compression_opts_list[compression_alg],
                               [compression_alg],
                               chunks_list,
                               shuffle_list)
                               for compression_alg in compression_opts_list)
+    compression_params_list_withprogressbar = tqdm(list(compression_param_product))
+    compression_params_list_withprogressbar.clear()
+    return compression_params_list_withprogressbar
 
-    return compression_param_product
-def plot_grid_seq(df, columns, legend_columns, legend_data=None, ax_lims=None,
+def plot_grid_seq(data_frame, columns, legend_columns, legend_data=None, ax_lims=None,
                   markers=None, file_name="figure",
                   legend_title=None, color_palette=None):
 
@@ -25,6 +180,7 @@ def plot_grid_seq(df, columns, legend_columns, legend_data=None, ax_lims=None,
                     rc={"xtick.labelsize": 19, "ytick.labelsize": 19})
     plot_dpi = 100
 
+    df = data_frame.copy(deep=True) # copy data_frame for plotting
     if ax_lims is not None:
         if len(ax_lims) != len(columns):
             raise IndexError("number of ax_lims is not equal to the number of columns")
