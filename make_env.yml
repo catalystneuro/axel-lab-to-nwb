@@ -16,6 +16,7 @@ dependencies:
 - pynwb
 - hdmf
 - scikit-image
+- seaborn
 - pip:
   - ndx-grayscalevolume
   - git+https://github.com/NeurodataWithoutBorders/nwbn-conversion-tools
