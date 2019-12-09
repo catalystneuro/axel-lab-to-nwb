@@ -19,7 +19,7 @@ $ pip install axel-lab-to-nwb
 After activating the correct environment, the conversion function can be used in different forms:
 
 **1. Imported and run from a python script:** <br/>
-Here's an example: we'll grab the data from the same experiment but stored in different `.npz` files and save it to a single `.nwb` file.
+Here's an example: we'll grab the data from the same experiment but stored in different `.npz` and `.mat` files and save it to a single `.nwb` file.
 ```python
 from axel_lab_to_nwb import conversion_function
 import yaml
@@ -29,6 +29,8 @@ f_nwb = 'output.nwb'
 
 # Source files
 source_paths = {}
+source_paths['raw data'] = {'type': 'file', 'path': PATH_TO_FILE}
+source_paths['raw info'] = {'type': 'file', 'path': PATH_TO_FILE}
 source_paths['processed data'] = {'type': 'file', 'path': PATH_TO_FILE}
 source_paths['sparse matrix'] = {'type': 'file', 'path': PATH_TO_FILE}
 source_paths['ref image'] = {'type': 'file', 'path': PATH_TO_FILE}
@@ -39,7 +41,12 @@ with open(metafile) as f:
    metadata = yaml.safe_load(f)
 
 # Other options
-kwargs = {'plot_rois': False}
+kwargs = {
+   'raw': False, 
+   'processed': True, 
+   'behavior': True
+   'plot_rois': False
+}
 
 conversion_function(source_paths=source_paths,
                    f_nwb=f_nwb,
