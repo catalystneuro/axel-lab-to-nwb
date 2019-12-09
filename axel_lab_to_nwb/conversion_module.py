@@ -27,7 +27,8 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
     ----------
     source_paths : dict
         Dictionary with paths to source files/directories. e.g.:
-        {'processed data': {'type': 'file', 'path': ''},
+        {'raw data': {'type': 'file', 'path': ''}
+         'processed data': {'type': 'file', 'path': ''},
          'sparse matrix': {'type': 'file', 'path': ''},
          'ref image',: {'type': 'file', 'path': ''}}
     f_nwb : str
