@@ -13,6 +13,7 @@ from ndx_grayscalevolume import GrayscaleVolume
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
+import scipy.io
 import h5py
 import yaml
 import numpy as np
@@ -27,7 +28,8 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
     ----------
     source_paths : dict
         Dictionary with paths to source files/directories. e.g.:
-        {'raw data': {'type': 'file', 'path': ''}
+        {'raw data': {'type': 'file', 'path': ''},
+         'raw info': {'type': 'file', 'path': ''}
          'processed data': {'type': 'file', 'path': ''},
          'sparse matrix': {'type': 'file', 'path': ''},
          'ref image',: {'type': 'file', 'path': ''}}
@@ -56,6 +58,7 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
 
     # Source files
     file_raw = None
+    file_info = None
     file_processed_1 = None
     file_processed_2 = None
     file_processed_3 = None
@@ -64,6 +67,8 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
             fname = source_paths[k]['path']
             if k == 'raw data':
                 file_raw = h5py.File(fname, 'r')
+            if k == 'raw info':
+                file_info = scipy.io.loadmat(fname, struct_as_record=False, squeeze_me=True)
             if k == 'processed data':
                 file_processed_1 = np.load(fname)
             if k == 'sparse matrix':
@@ -100,22 +105,25 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
 
     # Raw optical data
     if add_raw:
-        raw_options = file['options']
+        print('Adding raw data...')
         for meta_tps in metadata['Ophys']['TwoPhotonSeries']:
             if meta_tps['name'][-1] == 'R':
-                raw_data = file['R']
+                raw_data = file_raw['R']
             else:
-                raw_data = file['Y']
+                raw_data = file_raw['Y']
             # Change dimensions from (X,Y,Z,T) in mat file to (T,X,Y,Z) nwb standard
             raw_data = np.moveaxis(raw_data, -1, 0)
             tps = TwoPhotonSeries(
                 name=meta_tps['name'],
                 imaging_plane=nwb.imaging_planes[meta_tps['imaging_plane']],
-                data=raw_data
+                data=raw_data,
+                rate=file_info['info'].daq.scanRate
             )
+            nwb.add_acquisition(tps)
 
     # Processed data
     if add_processed:
+        print('Adding processed data...')
         ophys_module = ProcessingModule(
             name='Ophys',
             description='contains optical physiology processed data.',
@@ -177,6 +185,7 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
 
     # Behavior data
     if add_behavior:
+        print('Adding behavior data...')
         # Ball motion
         behavior_mod = nwb.create_processing_module(
             name='Behavior',
