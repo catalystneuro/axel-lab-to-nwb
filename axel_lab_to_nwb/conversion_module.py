@@ -10,8 +10,6 @@ from pynwb.base import TimeSeries
 from pynwb.behavior import Position
 from ndx_grayscalevolume import GrayscaleVolume
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
 import scipy.io
 import h5py
@@ -242,6 +240,9 @@ def make_voxel_mask(indices, dims):
 
 
 def plot_rois_function(plane_segmentation, indptr):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for select, c in zip(range(len(indptr)-1), cycle(['r', 'g', 'k', 'b', 'm', 'w', 'y', 'brown'])):
