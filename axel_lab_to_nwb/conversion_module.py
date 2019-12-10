@@ -27,11 +27,11 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
     ----------
     source_paths : dict
         Dictionary with paths to source files/directories. e.g.:
-        {'raw data': {'type': 'file', 'path': ''},
-         'raw info': {'type': 'file', 'path': ''}
-         'processed data': {'type': 'file', 'path': ''},
-         'sparse matrix': {'type': 'file', 'path': ''},
-         'ref image',: {'type': 'file', 'path': ''}}
+        {'raw_data': {'type': 'file', 'path': ''},
+         'raw_info': {'type': 'file', 'path': ''}
+         'processed_data': {'type': 'file', 'path': ''},
+         'sparse_matrix': {'type': 'file', 'path': ''},
+         'ref_image',: {'type': 'file', 'path': ''}}
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
     metadata : dict
@@ -55,15 +55,15 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
     for k, v in source_paths.items():
         if source_paths[k]['path'] != '':
             fname = source_paths[k]['path']
-            if k == 'raw data':
+            if k == 'raw_data':
                 file_raw = h5py.File(fname, 'r')
-            if k == 'raw info':
+            if k == 'raw_info':
                 file_info = scipy.io.loadmat(fname, struct_as_record=False, squeeze_me=True)
-            if k == 'processed data':
+            if k == 'processed_data':
                 file_processed = np.load(fname)
-            if k == 'sparse matrix':
+            if k == 'sparse_matrix':
                 file_sparse_matrix = np.load(fname)
-            if k == 'ref image':
+            if k == 'ref_image':
                 file_reference_image = np.load(fname)
 
     # Initialize a NWB object
@@ -245,30 +245,82 @@ def plot_rois_function(plane_segmentation, indptr):
 
 # If called directly fom terminal
 if __name__ == '__main__':
-    import sys
+    """
+    Usage: python conversion_module.py [raw_data] [raw_info] [processed_data]
+    [sparse_matrix] [ref_image] [-add_raw] [-add_processed] [-add_behavior] [-plot_rois]
+    """
+    import argparse
     import yaml
 
-    if len(sys.argv) < 6:
-        print('Error: Please provide source files, nwb file name and metafile.')
+    parser = argparse.ArgumentParser(description='A package for converting Axel Lab data to the NWB standard.')
 
-    f1 = sys.argv[1]
-    f2 = sys.argv[2]
-    f3 = sys.argv[3]
+    parser.add_argument(
+        "raw_data", help="The path to the .mat file holding raw data."
+    )
+    parser.add_argument(
+        "raw_info", help="The path to the .mat file holding raw data info."
+    )
+    parser.add_argument(
+        "processed_data", help="The path to the .npz file holding processed data."
+    )
+    parser.add_argument(
+        "sparse_matrix", help="The path to the .npz file holding sparse matrix data."
+    )
+    parser.add_argument(
+        "ref_image", help="The path to the .npz file holding reference image data."
+    )
+    parser.add_argument(
+        "metafile", help="The path to the metadata YAML file."
+    )
+    parser.add_argument(
+        "output_file", help="Output file to be created."
+    )
+    parser.add_argument(
+        "--add_raw",
+        action="store_true",
+        default=False,
+        help="Whether to add the raw data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--add_processed",
+        action="store_true",
+        default=False,
+        help="Whether to add the processed data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--add_behavior",
+        action="store_true",
+        default=False,
+        help="Whether to add the behavior data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--plot_rois",
+        action="store_true",
+        default=False,
+        help="Whether to plot the ROIs or not",
+    )
+
     source_paths = {
-        'processed data': {'type': 'file', 'path': f1},
-        'sparse matrix': {'type': 'file', 'path': f2},
-        'ref image': {'type': 'file', 'path': f3}
+        'raw_data': {'type': 'file', 'path': args.raw_data},
+        'raw_info': {'type': 'file', 'path': args.raw_info},
+        'processed_data': {'type': 'file', 'path': args.processed_data},
+        'sparse_matrix': {'type': 'file', 'path': args.sparse_matrix},
+        'ref_image': {'type': 'file', 'path': args.ref_image}
     }
-    f_nwb = sys.argv[4]
-    metafile = sys.argv[5]
-    plot_rois = False
+
+    f_nwb = args.output_file
 
     # Load metadata from YAML file
-    metafile = sys.argv[3]
+    metafile = args.metafile
     with open(metafile) as f:
        metadata = yaml.safe_load(f)
+
+    plot_rois = False
 
     conversion_function(source_paths=source_paths,
                         f_nwb=f_nwb,
                         metadata=metadata,
-                        plot_rois=plot_rois)
+                        add_raw=args.add_raw,
+                        add_processed=args.add_processed,
+                        add_behavior=args.add_behavior,
+                        plot_rois=args.plot_rois)
