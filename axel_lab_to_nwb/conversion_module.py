@@ -18,7 +18,8 @@ import numpy as np
 import os
 
 
-def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs):
+def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_processed=True,
+                        add_behavior=True, plot_rois=False):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
@@ -35,31 +36,22 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
         Path to output NWB file, e.g. 'my_file.nwb'.
     metadata : dict
         Metadata dictionary
+    add_raw : bool
+        Whether to convert raw data or not.
+    add_processed : bool
+        Whether to convert processed data or not.
+    add_behavior : bool
+        Whether to convert behavior data or not.
     plot_rois : bool
         Plot ROIs
-    **kwargs : key, value pairs
-        Extra keyword arguments, e.g.:
-        {'raw': False, 'processed': True, 'behavior': True}
     """
-
-    # Optional keywords
-    add_raw = False
-    add_processed = False
-    add_behavior = False
-    for key, value in kwargs.items():
-        if key == 'raw':
-            add_raw = kwargs[key]
-        if key == 'processed':
-            add_processed = kwargs[key]
-        if key == 'behavior':
-            add_behavior= kwargs[key]
 
     # Source files
     file_raw = None
     file_info = None
-    file_processed_1 = None
-    file_processed_2 = None
-    file_processed_3 = None
+    file_processed = None
+    file_sparse_matrix = None
+    file_reference_image = None
     for k, v in source_paths.items():
         if source_paths[k]['path'] != '':
             fname = source_paths[k]['path']
@@ -68,11 +60,11 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
             if k == 'raw info':
                 file_info = scipy.io.loadmat(fname, struct_as_record=False, squeeze_me=True)
             if k == 'processed data':
-                file_processed_1 = np.load(fname)
+                file_processed = np.load(fname)
             if k == 'sparse matrix':
-                file_processed_2 = np.load(fname)
+                file_sparse_matrix = np.load(fname)
             if k == 'ref image':
-                file_processed_3 = np.load(fname)
+                file_reference_image = np.load(fname)
 
     # Initialize a NWB object
     nwb = NWBFile(**metadata['NWBFile'])
@@ -82,7 +74,7 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
     nwb.add_device(device)
 
     # Creates one Imaging Plane for each channel
-    fs = 1. / (file_processed_1['time'][0][1]-file_processed_1['time'][0][0])
+    fs = 1. / (file_processed['time'][0][1]-file_processed['time'][0][0])
     for meta_ip in metadata['Ophys']['ImagingPlane']:
         # Optical channel
         opt_ch = OpticalChannel(
@@ -143,9 +135,9 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
         )
 
         # Add ROIs
-        indices = file_processed_2['indices']
-        indptr = file_processed_2['indptr']
-        dims = np.squeeze(file_processed_1['dims'])
+        indices = file_sparse_matrix['indices']
+        indptr = file_sparse_matrix['indptr']
+        dims = np.squeeze(file_processed['dims'])
         for start, stop in zip(indptr, indptr[1:]):
             voxel_mask = make_voxel_mask(indices[start:stop], dims)
             ps.add_roi(voxel_mask=voxel_mask)
@@ -159,15 +151,15 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
         ophys_module.add(dff)
 
         # create ROI regions
-        nCells = file_processed_1['dFF'].shape[0]
+        n_cells = file_processed['dFF'].shape[0]
         roi_region = ps.create_roi_table_region(
             description='RoiTableRegion',
-            region=list(range(nCells))
+            region=list(range(n_cells))
         )
 
         # create ROI response series
-        dff_data = file_processed_1['dFF']
-        tt = file_processed_1['time'].ravel()
+        dff_data = file_processed['dFF']
+        tt = file_processed['time'].ravel()
         meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
         meta_rrs['data'] = dff_data.T
         meta_rrs['rois'] = roi_region
@@ -177,7 +169,7 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
         # Creates GrayscaleVolume containers and add a reference image
         grayscale_volume = GrayscaleVolume(
             name=metadata['Ophys']['GrayscaleVolume']['name'],
-            data=file_processed_3['im']
+            data=file_reference_image['im']
         )
         ophys_module.add(grayscale_volume)
 
@@ -190,19 +182,19 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
             description='holds processed behavior data',
         )
         meta_ts = metadata['Behavior']['TimeSeries'][0]
-        meta_ts['data'] = file_processed_1['ball'].ravel()
+        meta_ts['data'] = file_processed['ball'].ravel()
         meta_ts['timestamps'] = tt
         behavior_ts = TimeSeries(**meta_ts)
         behavior_mod.add(behavior_ts)
 
         # Re-arranges spatial data of body-points positions tracking
-        pos = file_processed_1['dlc']
-        nPoints = 8
-        pos_reshaped = pos.reshape((-1, nPoints, 3))  # dims=(nSamples,nPoints,3)
+        pos = file_processed['dlc']
+        n_points = 8
+        pos_reshaped = pos.reshape((-1, n_points, 3))  # dims=(nSamples,n_points,3)
 
         # Creates a Position object and add one SpatialSeries for each body-point position
         position = Position()
-        for i in range(nPoints):
+        for i in range(n_points):
             position.create_spatial_series(name='SpatialSeries_' + str(i),
                                            data=pos_reshaped[:, i, :],
                                            timestamps=tt,
@@ -211,7 +203,7 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
         behavior_mod.add(position)
 
     # Trial times
-    trialFlag = file_processed_1['trialFlag'].ravel()
+    trialFlag = file_processed['trialFlag'].ravel()
     trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
     trial_times = tt[trial_inds]
 
