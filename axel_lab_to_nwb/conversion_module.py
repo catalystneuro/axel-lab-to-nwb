@@ -11,7 +11,6 @@ from pynwb.behavior import Position
 from ndx_grayscalevolume import GrayscaleVolume
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
 import yaml
 import numpy as np
