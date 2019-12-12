@@ -6,7 +6,7 @@ with open('README.md', 'r') as f:
     long_description = f.read()
 
 setup(name='axel_lab_to_nwb',
-      version='0.0.1',
+      version='0.1.0',
       description='NWB conversion scripts and tutorials.',
       long_description=long_description,
       long_description_content_type='text/markdown',
