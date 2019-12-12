@@ -21,8 +21,6 @@ After activating the correct environment, the conversion function can be used in
 **1. Imported and run from a python script:** <br/>
 Here's an example: we'll grab the data from the same experiment but stored in different `.npz` files and save it to a single `.nwb` file.
 ```python
-from datetime import datetime
-from dateutil.tz import tzlocal
 from axel_lab_to_nwb import conversion_function
 
 source_paths = {}
