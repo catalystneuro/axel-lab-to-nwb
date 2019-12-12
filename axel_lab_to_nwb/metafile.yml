@@ -22,7 +22,7 @@ Ophys:
     plane_segmentations:
       - name: PlaneSegmentation
         description: ADDME
-        imaging_plane: ImagingPlane
+        imaging_plane: ImagingPlane_R
   ImagingPlane:
     - description: ADDME
       device: Device
@@ -30,9 +30,24 @@ Ophys:
       imaging_rate: ADDME
       indicator: NLS-GCaMP6s
       location: whole central brain
-      name: ImagingPlane
-      optical_channel: OpticalChannel
-  OpticalChannel:
-    - description: 2P Optical Channel
-      emission_lambda: 510.0
-      name: OpticalChannel
+      name: ImagingPlane_G
+      optical_channel:
+        - description: 2P Optical Channel
+          emission_lambda: 510.0
+          name: OpticalChannel_G
+    - description: ADDME
+      device: Device
+      excitation_lambda: 488.0
+      imaging_rate: ADDME
+      indicator: redStinger
+      location: whole central brain
+      name: ImagingPlane_R
+      optical_channel:
+        - description: 2P Optical Channel
+          emission_lambda: 633.0
+          name: OpticalChannel_R
+  TwoPhotonSeries:
+    - name: TwoPhotonSeries_G
+      imaging_plane: ImagingPlane_G
+    - name: TwoPhotonSeries_R
+      imaging_plane: ImagingPlane_R

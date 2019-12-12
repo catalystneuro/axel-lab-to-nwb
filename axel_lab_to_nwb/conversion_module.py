@@ -4,21 +4,22 @@
 # written for Axel Lab
 # ------------------------------------------------------------------------------
 from pynwb import NWBFile, NWBHDF5IO, ProcessingModule
-from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF
+from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF, TwoPhotonSeries
 from pynwb.device import Device
 from pynwb.base import TimeSeries
 from pynwb.behavior import Position
 from ndx_grayscalevolume import GrayscaleVolume
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from itertools import cycle
+import scipy.io
+import h5py
 import yaml
 import numpy as np
 import os
 
 
-def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs):
+def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_processed=True,
+                        add_behavior=True, plot_rois=False):
     """
     Copy data stored in a set of .npz files to a single NWB file.
 
@@ -26,32 +27,44 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
     ----------
     source_paths : dict
         Dictionary with paths to source files/directories. e.g.:
-        {'processed data': {'type': 'file', 'path': ''},
-         'sparse matrix': {'type': 'file', 'path': ''},
-         'ref image',: {'type': 'file', 'path': ''}}
+        {'raw_data': {'type': 'file', 'path': ''},
+         'raw_info': {'type': 'file', 'path': ''}
+         'processed_data': {'type': 'file', 'path': ''},
+         'sparse_matrix': {'type': 'file', 'path': ''},
+         'ref_image',: {'type': 'file', 'path': ''}}
     f_nwb : str
         Path to output NWB file, e.g. 'my_file.nwb'.
     metadata : dict
         Metadata dictionary
+    add_raw : bool
+        Whether to convert raw data or not.
+    add_processed : bool
+        Whether to convert processed data or not.
+    add_behavior : bool
+        Whether to convert behavior data or not.
     plot_rois : bool
         Plot ROIs
-    **kwargs : key, value pairs
-        Extra keyword arguments
     """
 
     # Source files
-    file1 = None
-    file2 = None
-    file3 = None
+    file_raw = None
+    file_info = None
+    file_processed = None
+    file_sparse_matrix = None
+    file_reference_image = None
     for k, v in source_paths.items():
         if source_paths[k]['path'] != '':
             fname = source_paths[k]['path']
-            if k == 'processed data':
-                file1 = np.load(fname)
-            if k == 'sparse matrix':
-                file2 = np.load(fname)
-            if k == 'ref image':
-                file3 = np.load(fname)
+            if k == 'raw_data':
+                file_raw = h5py.File(fname, 'r')
+            if k == 'raw_info':
+                file_info = scipy.io.loadmat(fname, struct_as_record=False, squeeze_me=True)
+            if k == 'processed_data':
+                file_processed = np.load(fname)
+            if k == 'sparse_matrix':
+                file_sparse_matrix = np.load(fname)
+            if k == 'ref_image':
+                file_reference_image = np.load(fname)
 
     # Initialize a NWB object
     nwb = NWBFile(**metadata['NWBFile'])
@@ -60,119 +73,142 @@ def conversion_function(source_paths, f_nwb, metadata, plot_rois=False, **kwargs
     device = Device(name=metadata['Ophys']['Device'][0]['name'])
     nwb.add_device(device)
 
-    # Create an Imaging Plane
-    fs = 1. / (file1['time'][0][1]-file1['time'][0][0])
-    meta_oc = metadata['Ophys']['OpticalChannel'][0]
-    optical_channel = OpticalChannel(
-        name=meta_oc['name'],
-        description=meta_oc['description'],
-        emission_lambda=meta_oc['emission_lambda'],
-    )
-    meta_ip = metadata['Ophys']['ImagingPlane'][0]
-    imaging_plane = nwb.create_imaging_plane(
-        name=meta_ip['name'],
-        optical_channel=optical_channel,
-        description=meta_ip['description'],
-        device=device,
-        excitation_lambda=meta_ip['excitation_lambda'],
-        imaging_rate=fs,
-        indicator=meta_ip['indicator'],
-        location=meta_ip['location'],
-    )
+    # Creates one Imaging Plane for each channel
+    fs = 1. / (file_processed['time'][0][1]-file_processed['time'][0][0])
+    for meta_ip in metadata['Ophys']['ImagingPlane']:
+        # Optical channel
+        opt_ch = OpticalChannel(
+            name=meta_ip['optical_channel'][0]['name'],
+            description=meta_ip['optical_channel'][0]['description'],
+            emission_lambda=meta_ip['optical_channel'][0]['emission_lambda']
+        )
+        imaging_plane = nwb.create_imaging_plane(
+            name=meta_ip['name'],
+            optical_channel=opt_ch,
+            description=meta_ip['description'],
+            device=device,
+            excitation_lambda=meta_ip['excitation_lambda'],
+            imaging_rate=fs,
+            indicator=meta_ip['indicator'],
+            location=meta_ip['location'],
+        )
 
-    # Creates ophys ProcessingModule and add to file
-    ophys_module = ProcessingModule(
-        name='Ophys',
-        description='contains optical physiology processed data.',
-    )
-    nwb.add_processing_module(ophys_module)
+    # Raw optical data
+    if add_raw:
+        print('Adding raw data...')
+        for meta_tps in metadata['Ophys']['TwoPhotonSeries']:
+            if meta_tps['name'][-1] == 'R':
+                raw_data = file_raw['R']
+            else:
+                raw_data = file_raw['Y']
+            # Change dimensions from (X,Y,Z,T) in mat file to (T,X,Y,Z) nwb standard
+            raw_data = np.moveaxis(raw_data, -1, 0)
+            tps = TwoPhotonSeries(
+                name=meta_tps['name'],
+                imaging_plane=nwb.imaging_planes[meta_tps['imaging_plane']],
+                data=raw_data,
+                rate=file_info['info'].daq.scanRate
+            )
+            nwb.add_acquisition(tps)
 
-    # Create Image Segmentation compartment
-    img_seg = ImageSegmentation(
-        name=metadata['Ophys']['ImageSegmentation']['name']
-    )
-    ophys_module.add(img_seg)
+    # Processed data
+    if add_processed:
+        print('Adding processed data...')
+        ophys_module = ProcessingModule(
+            name='Ophys',
+            description='contains optical physiology processed data.',
+        )
+        nwb.add_processing_module(ophys_module)
 
-    # Create plane segmentation and add ROIs
-    meta_ps = metadata['Ophys']['ImageSegmentation']['plane_segmentations'][0]
-    ps = img_seg.create_plane_segmentation(
-        name=meta_ps['name'],
-        description=meta_ps['description'],
-        imaging_plane=imaging_plane,
-    )
+        # Create Image Segmentation compartment
+        img_seg = ImageSegmentation(
+            name=metadata['Ophys']['ImageSegmentation']['name']
+        )
+        ophys_module.add(img_seg)
 
-    # Add ROIs
-    indices = file2['indices']
-    indptr = file2['indptr']
-    dims = np.squeeze(file1['dims'])
-    for start, stop in zip(indptr, indptr[1:]):
-        voxel_mask = make_voxel_mask(indices[start:stop], dims)
-        ps.add_roi(voxel_mask=voxel_mask)
+        # Create plane segmentation and add ROIs
+        meta_ps = metadata['Ophys']['ImageSegmentation']['plane_segmentations'][0]
+        ps = img_seg.create_plane_segmentation(
+            name=meta_ps['name'],
+            description=meta_ps['description'],
+            imaging_plane=nwb.imaging_planes[meta_ps['imaging_plane']],
+        )
 
-    # Visualize 3D voxel masks
-    if plot_rois:
-        plot_rois_function(plane_segmentation=ps, indptr=indptr)
+        # Add ROIs
+        indices = file_sparse_matrix['indices']
+        indptr = file_sparse_matrix['indptr']
+        dims = np.squeeze(file_processed['dims'])
+        for start, stop in zip(indptr, indptr[1:]):
+            voxel_mask = make_voxel_mask(indices[start:stop], dims)
+            ps.add_roi(voxel_mask=voxel_mask)
 
-    # DFF measures
-    dff = DfOverF(name=metadata['Ophys']['DfOverF']['name'])
-    ophys_module.add(dff)
+        # Visualize 3D voxel masks
+        if plot_rois:
+            plot_rois_function(plane_segmentation=ps, indptr=indptr)
 
-    # create ROI regions
-    nCells = file1['dFF'].shape[0]
-    roi_region = ps.create_roi_table_region(
-        description='RoiTableRegion',
-        region=list(range(nCells))
-    )
+        # DFF measures
+        dff = DfOverF(name=metadata['Ophys']['DfOverF']['name'])
+        ophys_module.add(dff)
 
-    # create ROI response series
-    dff_data = file1['dFF']
-    tt = file1['time'].ravel()
-    meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
-    meta_rrs['data'] = dff_data.T
-    meta_rrs['rois'] = roi_region
-    meta_rrs['timestamps'] = tt
-    dff.create_roi_response_series(**meta_rrs)
+        # create ROI regions
+        n_cells = file_processed['dFF'].shape[0]
+        roi_region = ps.create_roi_table_region(
+            description='RoiTableRegion',
+            region=list(range(n_cells))
+        )
 
-    # Creates GrayscaleVolume containers and add a reference image
-    grayscale_volume = GrayscaleVolume(
-        name=metadata['Ophys']['GrayscaleVolume']['name'],
-        data=file3['im']
-    )
-    ophys_module.add(grayscale_volume)
+        # create ROI response series
+        dff_data = file_processed['dFF']
+        tt = file_processed['time'].ravel()
+        meta_rrs = metadata['Ophys']['DfOverF']['roi_response_series'][0]
+        meta_rrs['data'] = dff_data.T
+        meta_rrs['rois'] = roi_region
+        meta_rrs['timestamps'] = tt
+        dff.create_roi_response_series(**meta_rrs)
+
+        # Creates GrayscaleVolume containers and add a reference image
+        grayscale_volume = GrayscaleVolume(
+            name=metadata['Ophys']['GrayscaleVolume']['name'],
+            data=file_reference_image['im']
+        )
+        ophys_module.add(grayscale_volume)
+
+    # Behavior data
+    if add_behavior:
+        print('Adding behavior data...')
+        # Ball motion
+        behavior_mod = nwb.create_processing_module(
+            name='Behavior',
+            description='holds processed behavior data',
+        )
+        meta_ts = metadata['Behavior']['TimeSeries'][0]
+        meta_ts['data'] = file_processed['ball'].ravel()
+        meta_ts['timestamps'] = tt
+        behavior_ts = TimeSeries(**meta_ts)
+        behavior_mod.add(behavior_ts)
+
+        # Re-arranges spatial data of body-points positions tracking
+        pos = file_processed['dlc']
+        n_points = 8
+        pos_reshaped = pos.reshape((-1, n_points, 3))  # dims=(nSamples,n_points,3)
+
+        # Creates a Position object and add one SpatialSeries for each body-point position
+        position = Position()
+        for i in range(n_points):
+            position.create_spatial_series(name='SpatialSeries_' + str(i),
+                                           data=pos_reshaped[:, i, :],
+                                           timestamps=tt,
+                                           reference_frame='Description defining what the zero-position is.',
+                                           conversion=np.nan)
+        behavior_mod.add(position)
 
     # Trial times
-    trialFlag = file1['trialFlag'].ravel()
+    trialFlag = file_processed['trialFlag'].ravel()
     trial_inds = np.hstack((0, np.where(np.diff(trialFlag))[0], trialFlag.shape[0]-1))
     trial_times = tt[trial_inds]
 
     for start, stop in zip(trial_times, trial_times[1:]):
         nwb.add_trial(start_time=start, stop_time=stop)
-
-    # Behavior data - ball motion
-    behavior_mod = nwb.create_processing_module(
-        name='Behavior',
-        description='holds processed behavior data',
-    )
-    meta_ts = metadata['Behavior']['TimeSeries'][0]
-    meta_ts['data'] = file1['ball'].ravel()
-    meta_ts['timestamps'] = tt
-    behavior_ts = TimeSeries(**meta_ts)
-    behavior_mod.add(behavior_ts)
-
-    # Re-arranges spatial data of body-points positions tracking
-    pos = file1['dlc']
-    nPoints = 8
-    pos_reshaped = pos.reshape((-1, nPoints, 3))  # dims=(nSamples,nPoints,3)
-
-    # Creates a Position object and add one SpatialSeries for each body-point position
-    position = Position()
-    for i in range(nPoints):
-        position.create_spatial_series(name='SpatialSeries_' + str(i),
-                                       data=pos_reshaped[:, i, :],
-                                       timestamps=tt,
-                                       reference_frame='Description defining what the zero-position is.',
-                                       conversion=np.nan)
-    behavior_mod.add(position)
 
     # Saves to NWB file
     with NWBHDF5IO(f_nwb, mode='w') as io:
@@ -196,6 +232,9 @@ def make_voxel_mask(indices, dims):
 
 
 def plot_rois_function(plane_segmentation, indptr):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for select, c in zip(range(len(indptr)-1), cycle(['r', 'g', 'k', 'b', 'm', 'w', 'y', 'brown'])):
@@ -206,30 +245,82 @@ def plot_rois_function(plane_segmentation, indptr):
 
 # If called directly fom terminal
 if __name__ == '__main__':
-    import sys
+    """
+    Usage: python conversion_module.py [raw_data] [raw_info] [processed_data]
+    [sparse_matrix] [ref_image] [-add_raw] [-add_processed] [-add_behavior] [-plot_rois]
+    """
+    import argparse
     import yaml
 
-    if len(sys.argv) < 6:
-        print('Error: Please provide source files, nwb file name and metafile.')
+    parser = argparse.ArgumentParser(description='A package for converting Axel Lab data to the NWB standard.')
 
-    f1 = sys.argv[1]
-    f2 = sys.argv[2]
-    f3 = sys.argv[3]
+    parser.add_argument(
+        "raw_data", help="The path to the .mat file holding raw data."
+    )
+    parser.add_argument(
+        "raw_info", help="The path to the .mat file holding raw data info."
+    )
+    parser.add_argument(
+        "processed_data", help="The path to the .npz file holding processed data."
+    )
+    parser.add_argument(
+        "sparse_matrix", help="The path to the .npz file holding sparse matrix data."
+    )
+    parser.add_argument(
+        "ref_image", help="The path to the .npz file holding reference image data."
+    )
+    parser.add_argument(
+        "metafile", help="The path to the metadata YAML file."
+    )
+    parser.add_argument(
+        "output_file", help="Output file to be created."
+    )
+    parser.add_argument(
+        "--add_raw",
+        action="store_true",
+        default=False,
+        help="Whether to add the raw data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--add_processed",
+        action="store_true",
+        default=False,
+        help="Whether to add the processed data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--add_behavior",
+        action="store_true",
+        default=False,
+        help="Whether to add the behavior data to the NWB file or not",
+    )
+    parser.add_argument(
+        "--plot_rois",
+        action="store_true",
+        default=False,
+        help="Whether to plot the ROIs or not",
+    )
+
     source_paths = {
-        'processed data': {'type': 'file', 'path': f1},
-        'sparse matrix': {'type': 'file', 'path': f2},
-        'ref image': {'type': 'file', 'path': f3}
+        'raw_data': {'type': 'file', 'path': args.raw_data},
+        'raw_info': {'type': 'file', 'path': args.raw_info},
+        'processed_data': {'type': 'file', 'path': args.processed_data},
+        'sparse_matrix': {'type': 'file', 'path': args.sparse_matrix},
+        'ref_image': {'type': 'file', 'path': args.ref_image}
     }
-    f_nwb = sys.argv[4]
-    metafile = sys.argv[5]
-    plot_rois = False
+
+    f_nwb = args.output_file
 
     # Load metadata from YAML file
-    metafile = sys.argv[3]
+    metafile = args.metafile
     with open(metafile) as f:
        metadata = yaml.safe_load(f)
+
+    plot_rois = False
 
     conversion_function(source_paths=source_paths,
                         f_nwb=f_nwb,
                         metadata=metadata,
-                        plot_rois=plot_rois)
+                        add_raw=args.add_raw,
+                        add_processed=args.add_processed,
+                        add_behavior=args.add_behavior,
+                        plot_rois=args.plot_rois)
