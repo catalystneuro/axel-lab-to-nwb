@@ -3,19 +3,21 @@
 # authors: Luiz Tauffer and Ben Dichter
 # written for Axel Lab
 # ------------------------------------------------------------------------------
+import argparse
+import os
+import sys
+from itertools import cycle
+
+import h5py
+import numpy as np
+import scipy.io
+import yaml
+from ndx_grayscalevolume import GrayscaleVolume
 from pynwb import NWBFile, NWBHDF5IO, ProcessingModule
-from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF, TwoPhotonSeries
-from pynwb.device import Device
 from pynwb.base import TimeSeries
 from pynwb.behavior import Position
-from ndx_grayscalevolume import GrayscaleVolume
-
-from itertools import cycle
-import scipy.io
-import h5py
-import yaml
-import numpy as np
-import os
+from pynwb.device import Device
+from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF, TwoPhotonSeries
 
 
 def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_processed=True,
@@ -233,7 +235,6 @@ def make_voxel_mask(indices, dims):
 
 def plot_rois_function(plane_segmentation, indptr):
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -249,8 +250,6 @@ if __name__ == '__main__':
     Usage: python conversion_module.py [raw_data] [raw_info] [processed_data]
     [sparse_matrix] [ref_image] [-add_raw] [-add_processed] [-add_behavior] [-plot_rois]
     """
-    import argparse
-    import yaml
 
     parser = argparse.ArgumentParser(description='A package for converting Axel Lab data to the NWB standard.')
 
@@ -299,6 +298,11 @@ if __name__ == '__main__':
         default=False,
         help="Whether to plot the ROIs or not",
     )
+
+    if not sys.argv[1:]:
+        args = parser.parse_args(["--help"])
+    else:
+        args = parser.parse_args()
 
     source_paths = {
         'raw_data': {'type': 'file', 'path': args.raw_data},
