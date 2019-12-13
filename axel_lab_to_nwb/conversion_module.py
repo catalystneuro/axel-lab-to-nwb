@@ -111,17 +111,17 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
                 while chunk < tl:
                     val = data[:, :, :, chunk]
                     chunk += 1
-                    print(chunk)
+                    print('adding data chunk: ', chunk)
                     yield val
 
             xl, yl, zl, tl = raw_data.shape
             tps_data = DataChunkIterator(data=data_gen(data=raw_data),
                                          iter_axis=0,
-                                         maxshape=(tl, xl, yl, zl),
-                                         dtype=np.dtype('int16'))
+                                         maxshape=(tl, xl, yl, zl))
 
             # Change dimensions from (X,Y,Z,T) in mat file to (T,X,Y,Z) nwb standard
-            raw_data = np.moveaxis(raw_data, -1, 0)
+            #raw_data = np.moveaxis(raw_data, -1, 0)
+            
             tps = TwoPhotonSeries(
                 name=meta_tps['name'],
                 imaging_plane=nwb.imaging_planes[meta_tps['imaging_plane']],
