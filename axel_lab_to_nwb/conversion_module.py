@@ -18,6 +18,7 @@ from pynwb.base import TimeSeries
 from pynwb.behavior import Position
 from pynwb.device import Device
 from pynwb.ophys import OpticalChannel, ImageSegmentation, DfOverF, TwoPhotonSeries
+from hdmf.data_utils import DataChunkIterator
 
 
 def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_processed=True,
@@ -103,12 +104,28 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
                 raw_data = file_raw['R']
             else:
                 raw_data = file_raw['Y']
+
+            def data_gen(data):
+                xl, yl, zl, tl = data.shape
+                chunk = 0
+                while chunk < tl:
+                    val = data[:, :, :, chunk]
+                    chunk += 1
+                    print('adding data chunk: ', chunk)
+                    yield val
+
+            xl, yl, zl, tl = raw_data.shape
+            tps_data = DataChunkIterator(data=data_gen(data=raw_data),
+                                         iter_axis=0,
+                                         maxshape=(tl, xl, yl, zl))
+
             # Change dimensions from (X,Y,Z,T) in mat file to (T,X,Y,Z) nwb standard
-            raw_data = np.moveaxis(raw_data, -1, 0)
+            #raw_data = np.moveaxis(raw_data, -1, 0)
+            
             tps = TwoPhotonSeries(
                 name=meta_tps['name'],
                 imaging_plane=nwb.imaging_planes[meta_tps['imaging_plane']],
-                data=raw_data,
+                data=tps_data,
                 rate=file_info['info'].daq.scanRate
             )
             nwb.add_acquisition(tps)
