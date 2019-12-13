@@ -84,7 +84,7 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
             description=meta_ip['optical_channel'][0]['description'],
             emission_lambda=meta_ip['optical_channel'][0]['emission_lambda']
         )
-        imaging_plane = nwb.create_imaging_plane(
+        nwb.create_imaging_plane(
             name=meta_ip['name'],
             optical_channel=opt_ch,
             description=meta_ip['description'],
@@ -185,6 +185,7 @@ def conversion_function(source_paths, f_nwb, metadata, add_raw=False, add_proces
         )
         meta_ts = metadata['Behavior']['TimeSeries'][0]
         meta_ts['data'] = file_processed['ball'].ravel()
+        tt = file_processed['time'].ravel()
         meta_ts['timestamps'] = tt
         behavior_ts = TimeSeries(**meta_ts)
         behavior_mod.add(behavior_ts)
@@ -235,6 +236,7 @@ def make_voxel_mask(indices, dims):
 
 def plot_rois_function(plane_segmentation, indptr):
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
